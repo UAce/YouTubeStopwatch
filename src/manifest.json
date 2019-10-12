@@ -1,0 +1,24 @@
+{
+    "name": "YouTubeStopwatch",
+    "version": "1.0",
+    "description": "A project for Human Computer Intereaction (ECSE 424): A chrome extension that is used to help users plan, monitor, control their usage of Youtube.",
+    "background": {
+        "scripts": [
+            "js/background.js"
+        ],
+        "persistent": false
+    },
+    "permissions": [
+        "storage",
+        "declarativeContent",
+        "activeTab",
+        "webNavigation",
+        "*://*/*"
+    ],
+    "browser_action": {
+        "default_popup": "popup.html",
+        "default_title": "YouTubeStopwatch"
+    },
+    "options_page": "options.html",
+    "manifest_version": 2
+}
