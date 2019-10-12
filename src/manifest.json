@@ -17,7 +17,13 @@
     ],
     "browser_action": {
         "default_popup": "popup.html",
+        "default_icon": {
+            "32": "img/extension-icon.png"
+        },
         "default_title": "YouTubeStopwatch"
+    },
+    "icons": {
+        "128": "img/extension-icon.png"
     },
     "options_page": "options.html",
     "manifest_version": 2
