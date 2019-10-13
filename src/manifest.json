@@ -6,11 +6,23 @@
         "scripts": [
             "js/background.js"
         ],
-        "persistent": false
+        "persistent": true
     },
+    "content_scripts": [
+        {
+            "matches": [
+                "*://*.youtube.com/*"
+            ],
+            "js": [
+                "js/content.js"
+            ],
+            "run_at": "document_end"
+        }
+    ],
     "permissions": [
         "storage",
         "declarativeContent",
+        "tabs",
         "activeTab",
         "webNavigation",
         "*://*/*"
