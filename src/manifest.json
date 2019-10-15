@@ -22,12 +22,10 @@
             "run_at": "document_end"
         }
     ],
+    "web_accessible_resources": [],
     "permissions": [
         "storage",
-        "declarativeContent",
         "tabs",
-        "activeTab",
-        "webNavigation",
         "*://*/*"
     ],
     "browser_action": {

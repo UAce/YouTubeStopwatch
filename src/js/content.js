@@ -1,29 +1,47 @@
 console.log('Content Script loaded!');
 
+// Constants
+const status = {
+    STARTED: 'started',
+    STOPPED: 'stopped',
+}
+
+const source = {
+    BACKGROUND: 'background',
+    PAGE: 'youtube',
+    POPUP: 'popup'
+}
+
 var currentTabId;
+var blurIntervalId;
+const ONE_MINUTE_IN_S = 60;
+const ONE_HOUR_IN_S = 60 * 60;
 
 // Send message to background.js to get tab Id
-chrome.runtime.sendMessage({ from: "youtube" });
+chrome.runtime.sendMessage({ from: source.PAGE });
 
 // Get current tab id from background and add listeners to detect Tabs closed or Windows closed
 chrome.runtime.onMessage.addListener(function (msg) {
     console.log("Content script received", msg);
-    if (msg.from === "background") {
+    if (msg.from === source.BACKGROUND) {
         currentTabId = msg.tabId;
+        msg.init ? init() : null;
     }
 });
 init();
 
 function init() {
     chrome.storage.sync.get(['countdown_status', 'remainingTime'], function (data) {
-        var status = data.countdown_status;
+        var countdown_status = data.countdown_status;
         var remainingTime = data.remainingTime;
-        console.log('status:', status);
-        if (status === 'started' && remainingTime > 0) {
-            console.log('RemainingTime:', remainingTime);
+
+        // Time limit reached, apply and increase blur every 5min
+        if (remainingTime === -1) {
+            blur();
+        } else if (countdown_status === status.STARTED && remainingTime > 0) {
             return;
-        } else if (status === 'paused' && remainingTime > 0) {
-            chrome.runtime.sendMessage({ from: "youtube", startCountdown: true });
+        } else if (countdown_status === status.STOPPED && remainingTime > 0) {
+            chrome.runtime.sendMessage({ from: source.PAGE, startCountdown: true });
         } else {
             //TODO: inject div into YouTube page OR redirect to form page
             showTimeModal(); //temp solution
@@ -32,9 +50,7 @@ function init() {
 }
 
 
-const ONE_MINUTE_IN_S = 60;
-const ONE_HOUR_IN_S = 60 * 60;
-
+//TODO: Add suggested times
 function showTimeModal() {
     injectTimeModal();
     $(document).ready(function () {
@@ -49,25 +65,23 @@ function showTimeModal() {
                 dialogClass: 'no-close success-dialog',
                 autoOpen: true,
                 buttons: {
-                    'ok': function () {
+                    'OK': function () {
                         if ($('#timeModalForm').valid()) {
                             var hours = $("#estimated_hours").val();
                             var minutes = $("#estimated_minutes").val();
                             var estimatedTime = (ONE_MINUTE_IN_S * minutes) + (ONE_HOUR_IN_S * hours);
                             $('#timeModal').dialog('close');
-                            $("#overlay").remove();
+                            $("#overlayModal").remove();
                             if (estimatedTime <= 0) {
-                                chrome.runtime.sendMessage({ from: "youtube", closeTab: true });
+                                chrome.runtime.sendMessage({ from: source.PAGE, closeTab: true });
                                 return;
                             }
                             chrome.storage.sync.set({ 'remainingTime': estimatedTime }, function () {
                                 console.log('prompt value:', estimatedTime);
-                                chrome.runtime.sendMessage({ from: "youtube", startCountdown: true });
+                                chrome.runtime.sendMessage({ from: source.PAGE, startCountdown: true });
                             });
-                            var lastCountdownStartDate = new Date();
-                            chrome.storage.sync.set({ 'lastCountdownStartDate': lastCountdownStartDate }, function () {
-                                console.log('lastCountdownStartDate value:', lastCountdownStartDate);
-                            });
+                            var lastCountdownStartDate = (new Date()).getTime();
+                            chrome.storage.sync.set({ 'lastCountdownStartDate': lastCountdownStartDate });
                         }
                     }
                 }
@@ -99,11 +113,11 @@ function showTimeModal() {
 function injectTimeModal() {
     // Add overlay
     var docHeight = $(document).height();
-    $("body").append("<div id='overlay'></div>");
-    $("#overlay")
+    $("body").append("<div id='overlayModal'></div>");
+    $("#overlayModal")
         .height(docHeight)
         .css({
-            'opacity': 0.4,
+            'opacity': 0.7,
             'position': 'absolute',
             'top': 0,
             'left': 0,
@@ -187,3 +201,34 @@ function injectTimeModal() {
     document.body.appendChild(modalDiv);
 }
 
+
+/*
+ * Blur effect
+ */
+function blur() {
+    var blurStyle = document.getElementById('blurStyle');
+
+    // Prevent appending multiple times the blur element
+    if (!blurStyle) {
+        var style = document.createElement('style');
+        style.id = 'blurStyle';
+        style.innerHTML = `
+                video, ytd-thumbnail {
+                    filter: blur(2px);
+                }`;
+        document.body.parentElement.appendChild(style);
+
+        blurIntervalId = setInterval(function () {
+            chrome.storage.sync.get(['blur_value'], function (data) {
+                var val = data.blur_value;
+                val >= 20 ? clearInterval(blurIntervalId) : val++;
+                var blurStyle = document.getElementById('blurStyle');
+                blurStyle.innerHTML = `
+                video, ytd-thumbnail {
+                    filter: blur(${val}px);
+                }`;
+                chrome.storage.sync.set({ 'blur_value': val });
+            });
+        }, 5000 * ONE_MINUTE_IN_S); //Incremental blur every 5 minutes
+    }
+}
