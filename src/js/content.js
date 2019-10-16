@@ -258,12 +258,19 @@ function injectSnackbar() {
         left: 50%;
         bottom: 30px;
         font-size: 17px;
+        cursor: pointer;
       }
       
       #snackbar.show {
         visibility: visible;
-        -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
-        animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        -webkit-animation: fadein 0.5s;
+        animation: fadein 0.5s;
+      }
+
+      #snackbar.hide {
+        visibility: visible;
+        -webkit-animation: fadeout 0.5s;
+        animation: fadeout 0.5s;
       }
       
       @-webkit-keyframes fadein {
@@ -292,5 +299,10 @@ function injectSnackbar() {
 function showSnackbar() {
     var x = document.getElementById("snackbar");
     x.className = "show";
-    setTimeout(function () { x.className = x.className.replace("show", ""); }, 3000);
+    x.onclick = function () {
+        x.className = x.className.replace("show", "hide");
+        setTimeout(function () {
+            x.className = x.className.replace("hide", "");
+        }, 500);
+    };
 }

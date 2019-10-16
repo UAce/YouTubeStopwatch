@@ -120,7 +120,7 @@ function countdown(seconds) {
         remainingTime = (target - now) / 1000;
         if (remainingTime < 0) {
             remainingTime = -1;
-            stopCountdown();
+            stopCountdown(true);
             chrome.storage.sync.set({ 'blur_value': 3 });
             if (confirm('Oops! Looks like you ran out of time. Exit YouTube?')) {
                 active_youtube_tabs.forEach(function (id) {
@@ -158,11 +158,16 @@ function startCountdown() {
     });
 }
 
-function stopCountdown() {
+function stopCountdown(isDone) {
     chrome.storage.sync.set({ 'countdown_status': status.STOPPED });
     chrome.storage.sync.set({ 'remainingTime': remainingTime });
-    chrome.browserAction.setBadgeText({ 'text': 'OFF' });
-    chrome.browserAction.setBadgeBackgroundColor({ color: color.GREY });
+    if (isDone) {
+        chrome.browserAction.setBadgeText({ 'text': 'DONE' });
+        chrome.browserAction.setBadgeBackgroundColor({ color: color.RED });
+    } else {
+        chrome.browserAction.setBadgeText({ 'text': 'OFF' });
+        chrome.browserAction.setBadgeBackgroundColor({ color: color.GREY });
+    }
     printEvent('STOP COUNTDOWN');
     clearInterval(countdownId);
 }
