@@ -17,6 +17,8 @@ var blurIntervalId;
 const ONE_MINUTE_IN_S = 60;
 const ONE_HOUR_IN_S = 60 * 60;
 
+injectSnackbar();
+
 // Send message to background.js to get tab Id
 chrome.runtime.sendMessage({ from: source.PAGE });
 
@@ -24,8 +26,8 @@ chrome.runtime.sendMessage({ from: source.PAGE });
 chrome.runtime.onMessage.addListener(function (msg) {
     console.log("Content script received", msg);
     if (msg.from === source.BACKGROUND) {
-        currentTabId = msg.tabId;
         msg.init ? init() : null;
+        msg.showSnackbar ? showSnackbar() : null;
     }
 });
 init();
@@ -57,8 +59,8 @@ function showTimeModal() {
         $(function () {
             $("#timeModal").dialog({
                 height: "auto",
-                minHeight: 110,
-                maxHeight: 300,
+                minHeight: 200,
+                maxHeight: 400,
                 width: 200,
                 modal: true,
                 resizable: true,
@@ -194,7 +196,7 @@ function injectTimeModal() {
     }`;
 
     // Modal form
-    var modalString = '<div id="timeModal" title="Estimated Time on YouTube:">' + '<form id="timeModalForm" method="post">' + '<div style="float:left;padding-left:1rem;"><label>Hours:</label>' + '<input id="estimated_hours" name="estimated_hours" type="number"></div>' + '<div style="float:left;padding-left:1rem;"><label>Minutes:</label>' + '<input id="estimated_minutes" name="estimated_minutes" type="number"></div>' + '<div style="padding:1rem 0;clear:both;text-align:center" id="errorMessages"></div>' + '</form>' + '</div>';
+    var modalString = '<div id="timeModal" title="Estimated Time on YouTube:">' + '<form id="timeModalForm" method="post">' + '<div style="float:left;padding-left:1rem;"><label>Hours: </label>' + '<input id="estimated_hours" name="estimated_hours" type="number"></div>' + '<div style="float:left;padding-left:1rem;"><label>Minutes: </label>' + '<input id="estimated_minutes" name="estimated_minutes" type="number"></div>' + '<div style="padding:1rem 0;clear:both;text-align:center" id="errorMessages"></div>' + '</form>' + '</div>';
     var modalDiv = document.createElement('div');
     modalDiv.innerHTML = modalString.trim();
     modalDiv.appendChild(style);
@@ -231,4 +233,61 @@ function blur() {
             });
         }, 5000 * ONE_MINUTE_IN_S); //Incremental blur every 5 minutes
     }
+}
+
+
+function injectSnackbar() {
+    var snackDiv = document.createElement('div');
+    snackDiv.innerHTML = '<div id="snackbar">You have 5 minutes left...</div>';
+    var style = document.createElement('style');
+    style.innerHTML = `
+    #snackbar {
+        visibility: hidden;
+        min-width: 250px;
+        margin-left: -125px;
+        background-color: #333;
+        color: #fff;
+        text-align: center;
+        border-radius: 2px;
+        padding: 16px;
+        position: fixed;
+        z-index: 1;
+        left: 50%;
+        bottom: 30px;
+        font-size: 17px;
+      }
+      
+      #snackbar.show {
+        visibility: visible;
+        -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        animation: fadein 0.5s, fadeout 0.5s 2.5s;
+      }
+      
+      @-webkit-keyframes fadein {
+        from {bottom: 0; opacity: 0;} 
+        to {bottom: 30px; opacity: 1;}
+      }
+      
+      @keyframes fadein {
+        from {bottom: 0; opacity: 0;}
+        to {bottom: 30px; opacity: 1;}
+      }
+      
+      @-webkit-keyframes fadeout {
+        from {bottom: 30px; opacity: 1;} 
+        to {bottom: 0; opacity: 0;}
+      }
+      
+      @keyframes fadeout {
+        from {bottom: 30px; opacity: 1;}
+        to {bottom: 0; opacity: 0;}
+      }`;
+    snackDiv.appendChild(style);
+    document.body.appendChild(snackDiv);
+}
+
+function showSnackbar() {
+    var x = document.getElementById("snackbar");
+    x.className = "show";
+    setTimeout(function () { x.className = x.className.replace("show", ""); }, 3000);
 }

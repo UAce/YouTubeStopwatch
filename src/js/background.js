@@ -21,6 +21,7 @@ const color = {
     GREEN: '#4bb543'
 }
 var active_youtube_tabs = [];
+var FIVE_MINUTES_IN_S = 300;
 
 chrome.runtime.onInstalled.addListener(function () {
     stopCountdown(); // make sure countdown is stopped if reload extension
@@ -96,6 +97,9 @@ function reset() {
     remainingTime = 0;
     remainingHours = remainingMinutes = remainingSeconds = undefined;
     stopCountdown();
+    active_youtube_tabs.forEach(function (id) {
+        chrome.tabs.sendMessage(id, { from: source.BACKGROUND, init: true, tabId: id });
+    });
 }
 
 /*
@@ -107,6 +111,7 @@ function countdown(seconds) {
     var now = new Date().getTime();
     var target = new Date(now + seconds * 1000);
     var update = 500;
+    var isToastSent = false;
 
     countdownId = setInterval(function () {
         var now = new Date();
@@ -123,10 +128,16 @@ function countdown(seconds) {
                 });
             } else {
                 active_youtube_tabs.forEach(function (id) {
-                    chrome.tabs.sendMessage(id, { from: source.BACKGROUND, init: true, tabId: id });
+                    chrome.tabs.sendMessage(id, { from: source.BACKGROUND, init: true });
                 });
             }
             return;
+        }
+        if (Math.floor(remainingTime) === FIVE_MINUTES_IN_S && !isToastSent) {
+            active_youtube_tabs.forEach(function (id) {
+                chrome.tabs.sendMessage(id, { from: source.BACKGROUND, showSnackbar: true });
+            });
+            isToastSent = true;
         }
         remainingHours = ~~((remainingTime / 3600));
         remainingMinutes = ~~((remainingTime / 60) % 60)
