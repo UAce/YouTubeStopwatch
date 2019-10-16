@@ -44,6 +44,9 @@ chrome.runtime.onInstalled.addListener(function () {
                 if (tabId && msg.closeTab) {
                     chrome.tabs.remove(tabId);
                 }
+                if (msg.showArticle) {
+                    showArticle();
+                }
                 break;
             case source.POPUP:
                 if (msg.resetCountdown) {
@@ -91,7 +94,6 @@ function printEvent(ev) {
 }
 
 function reset() {
-    console.log('reset!');
     chrome.storage.sync.set({ 'countdown_status': status.STOPPED });
     chrome.storage.sync.set({ 'blur_value': 0 });
     remainingTime = 0;
@@ -119,7 +121,7 @@ function countdown(seconds) {
         if (remainingTime < 0) {
             remainingTime = -1;
             stopCountdown();
-            chrome.storage.sync.set({ 'blur_value': 2 });
+            chrome.storage.sync.set({ 'blur_value': 3 });
             if (confirm('Oops! Looks like you ran out of time. Exit YouTube?')) {
                 active_youtube_tabs.forEach(function (id) {
                     // Close all YouTube tabs
@@ -130,6 +132,7 @@ function countdown(seconds) {
                 active_youtube_tabs.forEach(function (id) {
                     chrome.tabs.sendMessage(id, { from: source.BACKGROUND, init: true });
                 });
+                showArticle();
             }
             return;
         }
@@ -162,4 +165,25 @@ function stopCountdown() {
     chrome.browserAction.setBadgeBackgroundColor({ color: color.GREY });
     printEvent('STOP COUNTDOWN');
     clearInterval(countdownId);
+}
+
+
+/*
+ * Show popup articles
+ */
+const article_url = ["https://slate.com/technology/2018/03/youtube-is-only-just-realizing-that-it-might-be-bad-for-all-of-us.html"];
+function showArticle() {
+    var w = 800;
+    var h = 500;
+    var left = (screen.width / 2) - (w / 2);
+    var top = (screen.height / 2) - (h / 2);
+    var idx = randomIntFromInterval(0, article_url.length - 1);
+    chrome.windows.create({
+        url: article_url[idx],
+        type: "popup", height: h, width: w, 'left': left, 'top': top, focused: true
+    });
+}
+
+function randomIntFromInterval(min, max) {
+    return Math.floor(Math.random() * (max - min + 1) + min);
 }

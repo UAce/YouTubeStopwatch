@@ -68,6 +68,8 @@ function showTimeModal() {
                 autoOpen: true,
                 buttons: {
                     'OK': function () {
+                        $("#estimated_hours").val().trim().length === 0 ? $("#estimated_hours").val(0) : null;
+                        $("#estimated_minutes").val().trim().length === 0 ? $("#estimated_minutes").val(0) : null;
                         if ($('#timeModalForm').valid()) {
                             var hours = $("#estimated_hours").val();
                             var minutes = $("#estimated_minutes").val();
@@ -79,7 +81,6 @@ function showTimeModal() {
                                 return;
                             }
                             chrome.storage.sync.set({ 'remainingTime': estimatedTime }, function () {
-                                console.log('prompt value:', estimatedTime);
                                 chrome.runtime.sendMessage({ from: source.PAGE, startCountdown: true });
                             });
                             var lastCountdownStartDate = (new Date()).getTime();
@@ -212,30 +213,32 @@ function blur() {
 
     // Prevent appending multiple times the blur element
     if (!blurStyle) {
-        var style = document.createElement('style');
-        style.id = 'blurStyle';
-        style.innerHTML = `
-                video, ytd-thumbnail {
-                    filter: blur(2px);
-                }`;
-        document.body.parentElement.appendChild(style);
+        chrome.storage.sync.get(['blur_value'], function (data) {
+            var val = data.blur_value;
+            var style = document.createElement('style');
+            style.id = 'blurStyle';
+            style.innerHTML = `
+                    video, ytd-thumbnail {
+                        filter: blur(${val}px);
+                    }`;
+            document.body.parentElement.appendChild(style);
 
-        blurIntervalId = setInterval(function () {
-            chrome.storage.sync.get(['blur_value'], function (data) {
-                var val = data.blur_value;
+            // Incremental blur every minute
+            blurIntervalId = setInterval(function () {
                 val >= 20 ? clearInterval(blurIntervalId) : val++;
                 var blurStyle = document.getElementById('blurStyle');
                 blurStyle.innerHTML = `
-                video, ytd-thumbnail {
-                    filter: blur(${val}px);
-                }`;
+                    video, ytd-thumbnail {
+                        filter: blur(${val}px);
+                    }`;
                 chrome.storage.sync.set({ 'blur_value': val });
-            });
-        }, 5000 * ONE_MINUTE_IN_S); //Incremental blur every 5 minutes
+            }, ONE_MINUTE_IN_S);
+        });
     }
 }
 
 
+// This is a replacement for chrome.notifications until we can get it to work
 function injectSnackbar() {
     var snackDiv = document.createElement('div');
     snackDiv.innerHTML = '<div id="snackbar">You have 5 minutes left...</div>';
