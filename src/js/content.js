@@ -65,7 +65,7 @@ function init(activeRemainingTime) {
         var remainingTime = activeRemainingTime || data.remainingTime;
         console.log("Init ", remainingTime, "countdown");
         countdown(remainingTime);
-        removeModal();
+        // removeModal();
         // Time limit reached, apply and increase blur every 5min
         if (remainingTime === -1) {
             blur();
@@ -81,6 +81,7 @@ function init(activeRemainingTime) {
 }
 
 function reset() {
+    removeModal();
     if (blurIntervalId) {
         clearInterval(blurIntervalId);
     }
@@ -199,13 +200,13 @@ function injectTimeModal() {
     }`;
 
     // Modal form
-    var modalContent = '<div id="timeModal" title="Estimated Time on YouTube:">' + '<form id="timeModalForm" method="post">' + '<div style="float:left;padding-left:1rem;"><label>Hours: </label>' + '<input id="estimated_hours" name="estimated_hours" type="number"></div>' + '<div style="float:left;padding-left:1rem;"><label>Minutes: </label>' + '<input id="estimated_minutes" name="estimated_minutes" type="number"></div>' + '<div style="padding:1rem 0;clear:both;text-align:center" id="errorMessages"></div>' + '</form>' + '</div>';
+    var modalContent = '<div id="timeModal" title="Estimated Time on YouTube:">' + '<form id="timeModalForm" method="post">' + '<div style="float:left;padding-left:1rem;"><label>Hours: </label>' + '<input id="estimated_hours" name="estimated_hours" type="number"></div>' + '<div style="float:left;padding-left:1rem;"><label>Minutes: </label>' + '<input id="estimated_minutes" name="estimated_minutes" type="number"></div>' + '<div style="padding:1rem 0;clear:both;text-align:center" id="errorMessages"></div><div id="presets_wrapper"></div>' + '</form>' + '</div>';
     var modalDiv = document.createElement('div');
+    modalDiv.id = "modal-container";
     modalDiv.innerHTML = modalContent.trim();
     modalDiv.appendChild(style);
     document.body.appendChild(modalDiv);
-    !isPresetAdded ? addPresetTimes() : null;
-    isPresetAdded = true;
+    addPresetTimes();
 }
 
 //TODO: Add suggested times
@@ -277,8 +278,8 @@ function showTimeModal() {
 }
 
 function removeModal() {
-    $('#timeModal').dialog('close');
-    $("#overlayModal").remove();
+    $("#timeModal").dialog('destroy').remove();
+    $('#overlayModal').remove();
     $('html, body').css({
         overflow: 'auto',
         height: 'auto'
@@ -286,8 +287,7 @@ function removeModal() {
 }
 
 function addPresetTimes() {
-    var presets_wrapper = document.createElement('div');
-    presets_wrapper.id = "presets_wrapper";
+    var presets_wrapper = document.getElementById('presets_wrapper');
     var presetStyle = document.createElement('style');
     presetStyle.innerHTML = `
     div#presets_wrapper {
@@ -316,7 +316,6 @@ function addPresetTimes() {
           outline: 0;
     }`;
     var modalForm = document.getElementById('timeModalForm');
-    modalForm.appendChild(presets_wrapper);
     modalForm.appendChild(presetStyle);
     for (preset in preset_times) {
         var newPreset = document.createElement('div');
@@ -324,7 +323,6 @@ function addPresetTimes() {
         newPreset.innerHTML = preset;
         newPreset.setAttribute('data-value', preset_times[preset]);
         newPreset.onclick = function (e) {
-            console.log(e.srcElement);
             var val = e.srcElement.attributes['data-value'].value;
             var hours = ~~(val / 60);
             var minutes = ~~(val % 60);
@@ -391,6 +389,8 @@ function injectSnackbar() {
         bottom: 30px;
         font-size: 17px;
         cursor: pointer;
+        box-shadow: 0;
+        transition: box-shadow 0.3s;
     }
       
     #snackbar.show {
@@ -403,6 +403,10 @@ function injectSnackbar() {
         visibility: visible;
         -webkit-animation: fadeout 0.5s;
         animation: fadeout 0.5s;
+    }
+
+    #snackbar:hover {
+        box-shadow: 0 0 5px #00fffb;
     }
       
     @-webkit-keyframes fadein {

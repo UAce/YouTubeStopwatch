@@ -178,6 +178,7 @@ function startCountdown() {
     printEvent('START COUNTDOWN');
     chrome.storage.sync.get(['remainingTime'], function (data) {
         countdown(data.remainingTime);
+        // countdown(304);
         chrome.storage.sync.set({ 'countdown_status': status.STARTED });
         setBadge(status.STARTED);
         active_youtube_tabs.forEach(function (id) {
