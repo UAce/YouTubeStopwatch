@@ -22,7 +22,9 @@
             "run_at": "document_end"
         }
     ],
-    "web_accessible_resources": [],
+    "web_accessible_resources": [
+        "img/hourglass.png"
+    ],
     "permissions": [
         "storage",
         "tabs",

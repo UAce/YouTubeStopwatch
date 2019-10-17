@@ -6,20 +6,29 @@ console.log('background script loaded!');
 const status = {
     STARTED: 'started',
     STOPPED: 'stopped',
+    DONE: 'done'
 }
-
 const source = {
     BACKGROUND: 'background',
     PAGE: 'youtube',
     POPUP: 'popup'
 }
-
 const color = {
     GREY: '#bbbdbb',
     RED: '#F50F0F',
     BLUE: '#1c2efc',
     GREEN: '#4bb543'
 }
+const event = {
+    INIT: 'init',
+    RESET: 'reset',
+    SNACKBAR: 'showSnackbar',
+    CLOSE_TAB: 'closeTab',
+    START_COUNTDOWN: 'startCountdown',
+    SHOW_ARTICLE: 'showArticle'
+}
+
+// Variables
 var active_youtube_tabs = [];
 var FIVE_MINUTES_IN_S = 300;
 
@@ -27,31 +36,28 @@ chrome.runtime.onInstalled.addListener(function () {
     stopCountdown(); // make sure countdown is stopped if reload extension
     chrome.runtime.onMessage.addListener(function (msg, sender) {
         var tabId = sender.tab ? sender.tab.id : null;
-        switch (msg.from) {
-            case source.PAGE:
-                if (tabId && active_youtube_tabs.indexOf(tabId) < 0) {
-                    active_youtube_tabs.push(tabId);
-                    chrome.tabs.sendMessage(tabId, {
-                        from: source.BACKGROUND,
-                        tabId: tabId
-                    });
-                    addListeners(tabId);
-                }
-                if (msg.startCountdown) {
-                    chrome.storage.sync.set({ 'countdown_status': status.STARTED });
-                    startCountdown();
-                }
-                if (tabId && msg.closeTab) {
-                    chrome.tabs.remove(tabId);
-                }
-                if (msg.showArticle) {
-                    showArticle();
-                }
+        if (msg.from === source.PAGE && active_youtube_tabs.indexOf(tabId) < 0) {
+            active_youtube_tabs.push(tabId);
+            addListeners(tabId);
+            chrome.storage.sync.get(['countdown_status'], function (data) {
+                setBadge(data.countdown_status);
+            });
+        }
+        switch (msg.event) {
+            case event.START_COUNTDOWN:
+                startCountdown();
                 break;
-            case source.POPUP:
-                if (msg.resetCountdown) {
-                    reset();
-                }
+            case event.CLOSE_TAB:
+                tabId && chrome.tabs.remove(tabId);
+                break;
+            case event.SHOW_ARTICLE:
+                showArticle();
+                break;
+            case event.RESET:
+                active_youtube_tabs.forEach(function (id) {
+                    chrome.tabs.sendMessage(id, { from: source.BACKGROUND, event: event.RESET });
+                });
+                reset();
                 break;
             default:
                 break;
@@ -62,31 +68,54 @@ chrome.runtime.onInstalled.addListener(function () {
 function removeYoutubeTab(tabId) {
     var idx = active_youtube_tabs.indexOf(tabId);
     active_youtube_tabs.splice(idx, 1);
-    active_youtube_tabs.length === 0 ? stopCountdown() : '';
-    console.log("Youtube tab closed");
+
+    if (active_youtube_tabs.length === 0) {
+        var isDone = remainingTime > 0 ? false : true;
+        stopCountdown(isDone);
+    }
+    console.log("Youtube tab closed", tabId, active_youtube_tabs);
 }
 
-function addListeners(senderTabId) {
-    console.log("Youtube tab opened");
+function addListeners(tabId) {
+    console.log("Youtube tab opened", tabId);
     chrome.tabs.onRemoved.addListener(function (id) {
-        if (senderTabId === id) {
-            removeYoutubeTab(senderTabId);
+        if (tabId === id) {
+            removeYoutubeTab(tabId);
         }
     });
     chrome.tabs.onUpdated.addListener(function (id, changeInfo) {
-        if (senderTabId === id && changeInfo.status === 'complete') {
-            chrome.tabs.get(senderTabId, function (tab) {
+        if (tabId === id && changeInfo.status === 'complete') {
+            chrome.tabs.get(tabId, function (tab) {
                 if (tab.url.indexOf('youtube.com') < 0) {
-                    removeYoutubeTab(senderTabId);
+                    removeYoutubeTab(tabId);
                 } else {
-                    chrome.tabs.sendMessage(senderTabId, {
+                    chrome.tabs.sendMessage(tabId, {
                         from: source.BACKGROUND,
-                        init: true
+                        event: event.INIT
                     });
                 }
             });
         }
     });
+}
+
+function setBadge(state) {
+    switch (state) {
+        case status.STARTED:
+            chrome.browserAction.setBadgeText({ text: 'ON' });
+            chrome.browserAction.setBadgeBackgroundColor({ color: color.GREEN });
+            break;
+        case status.DONE:
+            chrome.browserAction.setBadgeText({ 'text': 'DONE' });
+            chrome.browserAction.setBadgeBackgroundColor({ color: color.RED });
+            break;
+        case status.STOPPED:
+        // I purposely removed the break
+        default:
+            chrome.browserAction.setBadgeText({ 'text': 'OFF' });
+            chrome.browserAction.setBadgeBackgroundColor({ color: color.GREY });
+            break;
+    }
 }
 
 function printEvent(ev) {
@@ -99,9 +128,6 @@ function reset() {
     remainingTime = 0;
     remainingHours = remainingMinutes = remainingSeconds = undefined;
     stopCountdown();
-    active_youtube_tabs.forEach(function (id) {
-        chrome.tabs.sendMessage(id, { from: source.BACKGROUND, init: true, tabId: id });
-    });
 }
 
 /*
@@ -126,11 +152,10 @@ function countdown(seconds) {
                 active_youtube_tabs.forEach(function (id) {
                     // Close all YouTube tabs
                     chrome.tabs.remove(id);
-                    removeYoutubeTab(id);
                 });
             } else {
                 active_youtube_tabs.forEach(function (id) {
-                    chrome.tabs.sendMessage(id, { from: source.BACKGROUND, init: true });
+                    chrome.tabs.sendMessage(id, { from: source.BACKGROUND, event: event.INIT });
                 });
                 showArticle();
             }
@@ -138,38 +163,35 @@ function countdown(seconds) {
         }
         if (Math.floor(remainingTime) === FIVE_MINUTES_IN_S && !isToastSent) {
             active_youtube_tabs.forEach(function (id) {
-                chrome.tabs.sendMessage(id, { from: source.BACKGROUND, showSnackbar: true });
+                chrome.tabs.sendMessage(id, { from: source.BACKGROUND, event: event.SNACKBAR });
             });
             isToastSent = true;
         }
         remainingHours = ~~((remainingTime / 3600));
-        remainingMinutes = ~~((remainingTime / 60) % 60)
+        remainingMinutes = ~~((remainingTime / 60) % 60);
         remainingSeconds = ~~(remainingTime % 60);
     }, update);
 }
 
 function startCountdown() {
-    chrome.storage.sync.set({ 'countdown_status': status.STARTED });
-    chrome.browserAction.setBadgeText({ text: 'ON' });
-    chrome.browserAction.setBadgeBackgroundColor({ color: color.GREEN });
     printEvent('START COUNTDOWN');
     chrome.storage.sync.get(['remainingTime'], function (data) {
         countdown(data.remainingTime);
+        chrome.storage.sync.set({ 'countdown_status': status.STARTED });
+        setBadge(status.STARTED);
+        active_youtube_tabs.forEach(function (id) {
+            chrome.tabs.sendMessage(id, { from: source.BACKGROUND, event: event.INIT });
+        });
     });
 }
 
 function stopCountdown(isDone) {
-    chrome.storage.sync.set({ 'countdown_status': status.STOPPED });
-    chrome.storage.sync.set({ 'remainingTime': remainingTime });
-    if (isDone) {
-        chrome.browserAction.setBadgeText({ 'text': 'DONE' });
-        chrome.browserAction.setBadgeBackgroundColor({ color: color.RED });
-    } else {
-        chrome.browserAction.setBadgeText({ 'text': 'OFF' });
-        chrome.browserAction.setBadgeBackgroundColor({ color: color.GREY });
-    }
     printEvent('STOP COUNTDOWN');
     clearInterval(countdownId);
+    var state = isDone ? status.DONE : status.STOPPED;
+    chrome.storage.sync.set({ 'remainingTime': remainingTime });
+    chrome.storage.sync.set({ 'countdown_status': state });
+    setBadge(state);
 }
 
 

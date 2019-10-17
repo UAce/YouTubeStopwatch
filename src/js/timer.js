@@ -4,9 +4,16 @@ const source = {
   PAGE: 'youtube',
   POPUP: 'popup'
 }
+const event = {
+  INIT: 'init',
+  RESET: 'reset',
+  SNACKBAR: 'showSnackbar',
+  CLOSE_TAB: 'closeTab',
+  START_COUNTDOWN: 'startCountdown',
+  SHOW_ARTICLE: 'showArticle'
+}
 
-// Global var
-var background = chrome.extension.getBackgroundPage(); // instance of background script
+// Variables
 var hours, minutes, seconds, remainingTime;
 var countdown = document.getElementById("countdown");
 
@@ -18,10 +25,10 @@ var intervalId = setInterval(function () {
   remainingTime = background.remainingTime;
 
   if (typeof (hours) === 'undefined' || typeof (minutes) === 'undefined' || typeof (seconds) === 'undefined') {
-    countdown.innerHTML = 'Countdown not started yet';
+    countdown.innerHTML = 'Timer has not been set';
   } else if (remainingTime === -1) {
     countdown.innerHTML = "Time's up!!";
-    intervalId || clearInterval(intervalId);
+    clearInterval(intervalId);
   } else {
     countdown.innerHTML = 'Time remaining: ' + format(hours) + ":" + format(minutes) + ":" + format(seconds);
   }
@@ -37,7 +44,9 @@ let resetButton = document.getElementById('reset');
 
 resetButton.onclick = function () {
   chrome.storage.sync.clear(function () {
-    chrome.runtime.sendMessage({ from: source.POPUP, resetCountdown: true });
-    alert('Countdown was successfully reset!');
+    chrome.runtime.sendMessage({ from: source.POPUP, event: event.RESET });
+    var countdown = document.getElementById("countdown");
+    countdown.innerHTML = "RESET!";
+    window.location.reload();
   });
 };

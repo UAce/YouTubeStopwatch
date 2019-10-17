@@ -5,19 +5,33 @@ const status = {
     STARTED: 'started',
     STOPPED: 'stopped',
 }
-
 const source = {
     BACKGROUND: 'background',
     PAGE: 'youtube',
     POPUP: 'popup'
 }
+const event = {
+    INIT: 'init',
+    RESET: 'reset',
+    SNACKBAR: 'showSnackbar',
+    CLOSE_TAB: 'closeTab',
+    START_COUNTDOWN: 'startCountdown',
+    SHOW_ARTICLE: 'showArticle'
+}
 
+const ONE_MINUTE_IN_MS = 60000;
+const ONE_MINUTE_IN_S = 60;
+const ONE_HOUR_IN_S = 3600;
+const MAX_BLUR_VAL = 20;
+const MAX_HOURS = 23;
+const MAX_MINUTES = 59;
+
+// Variables
 var currentTabId;
 var blurIntervalId;
-const ONE_MINUTE_IN_S = 60;
-const ONE_HOUR_IN_S = 60 * 60;
 
 injectSnackbar();
+injectTimerIcon();
 
 // Send message to background.js to get tab Id
 chrome.runtime.sendMessage({ from: source.PAGE });
@@ -26,8 +40,22 @@ chrome.runtime.sendMessage({ from: source.PAGE });
 chrome.runtime.onMessage.addListener(function (msg) {
     console.log("Content script received", msg);
     if (msg.from === source.BACKGROUND) {
-        msg.init ? init() : null;
-        msg.showSnackbar ? showSnackbar() : null;
+        switch (msg.event) {
+            case event.INIT:
+                init();
+                break;
+            case event.RESET:
+                reset();
+                break;
+            case event.SNACKBAR:
+                showSnackbar();
+                break;
+            case event.SET:
+                console.log("SET:", msg.remainingTime);
+                break;
+            default:
+                break;
+        }
     }
 });
 init();
@@ -36,89 +64,46 @@ function init() {
     chrome.storage.sync.get(['countdown_status', 'remainingTime'], function (data) {
         var countdown_status = data.countdown_status;
         var remainingTime = data.remainingTime;
-
+        console.log("Init ", remainingTime, "countdown");
+        countdown(remainingTime);
         // Time limit reached, apply and increase blur every 5min
         if (remainingTime === -1) {
             blur();
         } else if (countdown_status === status.STARTED && remainingTime > 0) {
+            removeModal();
             return;
         } else if (countdown_status === status.STOPPED && remainingTime > 0) {
-            chrome.runtime.sendMessage({ from: source.PAGE, startCountdown: true });
+            chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_COUNTDOWN });
         } else {
-            //TODO: inject div into YouTube page OR redirect to form page
             showTimeModal(); //temp solution
         }
     });
 }
 
-
-//TODO: Add suggested times
-function showTimeModal() {
-    injectTimeModal();
-    $(document).ready(function () {
-        $(function () {
-            $("#timeModal").dialog({
-                height: "auto",
-                minHeight: 200,
-                maxHeight: 400,
-                width: 200,
-                modal: true,
-                resizable: true,
-                dialogClass: 'no-close success-dialog',
-                autoOpen: true,
-                buttons: {
-                    'OK': function () {
-                        $("#estimated_hours").val().trim().length === 0 ? $("#estimated_hours").val(0) : null;
-                        $("#estimated_minutes").val().trim().length === 0 ? $("#estimated_minutes").val(0) : null;
-                        if ($('#timeModalForm').valid()) {
-                            var hours = $("#estimated_hours").val();
-                            var minutes = $("#estimated_minutes").val();
-                            var estimatedTime = (ONE_MINUTE_IN_S * minutes) + (ONE_HOUR_IN_S * hours);
-                            $('#timeModal').dialog('close');
-                            $("#overlayModal").remove();
-                            if (estimatedTime <= 0) {
-                                chrome.runtime.sendMessage({ from: source.PAGE, closeTab: true });
-                                return;
-                            }
-                            chrome.storage.sync.set({ 'remainingTime': estimatedTime }, function () {
-                                chrome.runtime.sendMessage({ from: source.PAGE, startCountdown: true });
-                            });
-                            var lastCountdownStartDate = (new Date()).getTime();
-                            chrome.storage.sync.set({ 'lastCountdownStartDate': lastCountdownStartDate });
-                        }
-                    }
-                }
-            });
-        });
-        $('#timeModalForm').validate({
-            wrapper: 'div',
-            errorLabelContainer: "#errorMessages",
-            rules: {
-                estimated_hours: {
-                    required: true,
-                    range: [0, 23],
-                    digits: true
-                },
-                estimated_minutes: {
-                    required: true,
-                    range: [0, 59],
-                    digits: true
-                }
-            },
-            messages: {
-                estimated_hours: "Hours must be between 0 and 23",
-                estimated_minutes: "Minutes must be between 0 and 59",
-            }
-        });
-    });
+function reset() {
+    if (blurIntervalId) {
+        clearInterval(blurIntervalId);
+    }
+    var blur = document.getElementById('blurStyle');
+    blur && blur.remove();
+    init();
 }
 
+
+/*
+ * MODAL
+ */
 function injectTimeModal() {
     // Add overlay
-    var docHeight = $(document).height();
+    // var docHeight = $(document).height();
+    var body = document.body,
+        html = document.documentElement;
+
+    var maxHeight = Math.max(body.scrollHeight, body.offsetHeight,
+        html.clientHeight, html.scrollHeight, html.offsetHeight);
     $("body").append("<div id='overlayModal'></div>");
     $("#overlayModal")
-        .height(docHeight)
+        .height(maxHeight)
         .css({
             'opacity': 0.7,
             'position': 'absolute',
@@ -126,6 +111,7 @@ function injectTimeModal() {
             'left': 0,
             'background-color': 'black',
             'width': '100%',
+            'height': '100%',
             'z-index': 5000
         });
 
@@ -197,16 +183,83 @@ function injectTimeModal() {
     }`;
 
     // Modal form
-    var modalString = '<div id="timeModal" title="Estimated Time on YouTube:">' + '<form id="timeModalForm" method="post">' + '<div style="float:left;padding-left:1rem;"><label>Hours: </label>' + '<input id="estimated_hours" name="estimated_hours" type="number"></div>' + '<div style="float:left;padding-left:1rem;"><label>Minutes: </label>' + '<input id="estimated_minutes" name="estimated_minutes" type="number"></div>' + '<div style="padding:1rem 0;clear:both;text-align:center" id="errorMessages"></div>' + '</form>' + '</div>';
+    var modalContent = '<div id="timeModal" title="Estimated Time on YouTube:">' + '<form id="timeModalForm" method="post">' + '<div style="float:left;padding-left:1rem;"><label>Hours: </label>' + '<input id="estimated_hours" name="estimated_hours" type="number"></div>' + '<div style="float:left;padding-left:1rem;"><label>Minutes: </label>' + '<input id="estimated_minutes" name="estimated_minutes" type="number"></div>' + '<div style="padding:1rem 0;clear:both;text-align:center" id="errorMessages"></div>' + '</form>' + '</div>';
     var modalDiv = document.createElement('div');
-    modalDiv.innerHTML = modalString.trim();
+    modalDiv.innerHTML = modalContent.trim();
     modalDiv.appendChild(style);
     document.body.appendChild(modalDiv);
 }
 
+//TODO: Add suggested times
+function showTimeModal() {
+    injectTimeModal();
+    $(document).ready(function () {
+        $(function () {
+            $("#timeModal").dialog({
+                height: "auto",
+                minHeight: 200,
+                maxHeight: 400,
+                width: 200,
+                modal: true,
+                resizable: true,
+                dialogClass: 'no-close success-dialog',
+                autoOpen: true,
+                buttons: {
+                    'OK': function () {
+                        $("#estimated_hours").val().trim().length === 0 ? $("#estimated_hours").val(0) : null;
+                        $("#estimated_minutes").val().trim().length === 0 ? $("#estimated_minutes").val(0) : null;
+                        if ($('#timeModalForm').valid()) {
+                            var hours = $("#estimated_hours").val();
+                            var minutes = $("#estimated_minutes").val();
+                            var estimatedTime = (ONE_MINUTE_IN_S * minutes) + (ONE_HOUR_IN_S * hours);
+                            $('#timeModal').dialog('close');
+                            $("#overlayModal").remove();
+                            if (estimatedTime <= 0) {
+                                chrome.runtime.sendMessage({ from: source.PAGE, event: event.CLOSE_TAB });
+                                return;
+                            }
+                            chrome.storage.sync.set({ 'remainingTime': estimatedTime }, function () {
+                                chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_COUNTDOWN });
+                            });
+                            var lastCountdownStartDate = (new Date()).getTime();
+                            chrome.storage.sync.set({ 'lastCountdownStartDate': lastCountdownStartDate });
+                            countdown(estimatedTime);
+                        }
+                    }
+                }
+            });
+        });
+        $('#timeModalForm').validate({
+            wrapper: 'div',
+            errorLabelContainer: "#errorMessages",
+            rules: {
+                estimated_hours: {
+                    required: true,
+                    range: [0, MAX_HOURS],
+                    digits: true
+                },
+                estimated_minutes: {
+                    required: true,
+                    range: [0, MAX_MINUTES],
+                    digits: true
+                }
+            },
+            messages: {
+                estimated_hours: "Hours must be between 0 and 23",
+                estimated_minutes: "Minutes must be between 0 and 59",
+            }
+        });
+    });
+}
+
+function removeModal() {
+    $('#timeModal').dialog('close');
+    $("#overlayModal").remove();
+}
+
 
 /*
- * Blur effect
+ * BLUR effect
  */
 function blur() {
     var blurStyle = document.getElementById('blurStyle');
@@ -225,20 +278,22 @@ function blur() {
 
             // Incremental blur every minute
             blurIntervalId = setInterval(function () {
-                val >= 20 ? clearInterval(blurIntervalId) : val++;
+                val >= MAX_BLUR_VAL ? clearInterval(blurIntervalId) : val++;
                 var blurStyle = document.getElementById('blurStyle');
                 blurStyle.innerHTML = `
-                    video, ytd-thumbnail {
+                    video, yt-img-shadow, ytd-moving-thumbnail-renderer {
                         filter: blur(${val}px);
                     }`;
                 chrome.storage.sync.set({ 'blur_value': val });
-            }, ONE_MINUTE_IN_S);
+            }, ONE_MINUTE_IN_MS);
         });
     }
 }
 
 
-// This is a replacement for chrome.notifications until we can get it to work
+/*
+ * SNACKBAR (This is a replacement for chrome.notifications until we can get it to work)
+ */
 function injectSnackbar() {
     var snackDiv = document.createElement('div');
     snackDiv.innerHTML = '<div id="snackbar">You have 5 minutes left...</div>';
@@ -259,39 +314,39 @@ function injectSnackbar() {
         bottom: 30px;
         font-size: 17px;
         cursor: pointer;
-      }
+    }
       
-      #snackbar.show {
+    #snackbar.show {
         visibility: visible;
         -webkit-animation: fadein 0.5s;
         animation: fadein 0.5s;
-      }
+    }
 
-      #snackbar.hide {
+    #snackbar.hide {
         visibility: visible;
         -webkit-animation: fadeout 0.5s;
         animation: fadeout 0.5s;
-      }
+    }
       
-      @-webkit-keyframes fadein {
+    @-webkit-keyframes fadein {
         from {bottom: 0; opacity: 0;} 
         to {bottom: 30px; opacity: 1;}
-      }
+    }
       
-      @keyframes fadein {
+    @keyframes fadein {
         from {bottom: 0; opacity: 0;}
         to {bottom: 30px; opacity: 1;}
-      }
+    }
       
-      @-webkit-keyframes fadeout {
+    @-webkit-keyframes fadeout {
         from {bottom: 30px; opacity: 1;} 
         to {bottom: 0; opacity: 0;}
-      }
+    }
       
-      @keyframes fadeout {
+    @keyframes fadeout {
         from {bottom: 30px; opacity: 1;}
         to {bottom: 0; opacity: 0;}
-      }`;
+    }`;
     snackDiv.appendChild(style);
     document.body.appendChild(snackDiv);
 }
@@ -305,4 +360,105 @@ function showSnackbar() {
             x.className = x.className.replace("hide", "");
         }, 500);
     };
+}
+
+/*
+ * TIMER ICON
+ */
+function injectTimerIcon() {
+    var containerDiv = document.createElement('div');
+    containerDiv.id = containerDiv.className = "timer-container";
+
+    var imgIcon = document.createElement('img');
+    imgIcon.id = "timer-hourglass";
+    imgIcon.src = chrome.runtime.getURL('img/hourglass.png');
+    imgIcon.style.height = imgIcon.style.width = '24px';
+    containerDiv.appendChild(imgIcon);
+
+    var tooltip = document.createElement('div');
+    tooltip.innerHTML = '<div class="time-remaining" id="time-remaining"></div>'.trim();
+    tooltip.id = tooltip.className = "timer-tooltip";
+    containerDiv.appendChild(tooltip);
+
+    var tooltipStyle = document.createElement('style');
+    tooltipStyle.innerHTML = `
+    .timer-container {
+        position: relative;
+        width: 24px;
+        display: inline-block;
+      }
+      
+      .timer-tooltip {
+        position: absolute;
+        top: 50px;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-75%);
+        opacity: 0;
+        transition: .5s ease;
+      }
+      
+      .timer-container:hover .timer-tooltip {
+        opacity: 1;
+      }
+      
+      .time-remaining {
+        color: white;
+        font-size: 18px;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        -webkit-transform: translate(-50%, -50%);
+        -ms-transform: translate(-50%, -50%);
+        transform: translate(-50%, -50%);
+        text-align: center;
+        white-space: nowrap;
+        padding: 0.75rem;
+        border-radius: 5px;
+        background-color: var(--paper-tooltip-background, #616161);
+      }`;
+    containerDiv.appendChild(tooltipStyle);
+
+    // Add hourglass next to YouTube logo
+    var youtubeLogo = document.getElementsByTagName('ytd-topbar-logo-renderer')[0];
+    youtubeLogo.parentNode.insertBefore(containerDiv, youtubeLogo.nextSibling); // Insert timer-container div after youtube logo
+}
+
+
+/*
+ * Start Countdown time on YouTube page
+ */
+var countdownIntervalId, remainingTime, hours, minutes, seconds;
+
+function countdown(seconds) {
+    var now = new Date().getTime();
+    var target = new Date(now + seconds * 1000);
+    var update = 500;
+    var tooltip = document.getElementById('time-remaining');
+    if (countdownIntervalId) {
+        clearInterval(countdownIntervalId);
+        countdownIntervalId = null;
+    }
+    if (seconds === 0) {
+        tooltip.innerHTML = "Timer has not been set";
+    }
+    countdownIntervalId = setInterval(function () {
+        var now = new Date();
+        remainingTime = (target - now) / 1000;
+
+        if (remainingTime < 0) {
+            remainingTime = -1;
+            tooltip.innerHTML = "Time's up!!";
+            clearInterval(countdownIntervalId);
+        } else {
+            var hours = ~~((remainingTime / 3600));
+            var minutes = ~~((remainingTime / 60) % 60);
+            var seconds = ~~(remainingTime % 60);
+            tooltip.innerHTML = format(hours) + ":" + format(minutes) + ":" + format(seconds);
+        }
+    }, update);
+}
+
+function format(num) {
+    return num < 10 ? "0" + num : num;
 }
