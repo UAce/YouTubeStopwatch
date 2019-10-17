@@ -50,3 +50,10 @@ resetButton.onclick = function () {
     window.location.reload();
   });
 };
+
+// Show last article
+let showArticleButton = document.getElementById('showLastArticle');
+
+showArticleButton.onclick = function () {
+  chrome.runtime.sendMessage({ from: source.POPUP, event: event.SHOW_ARTICLE });
+};
