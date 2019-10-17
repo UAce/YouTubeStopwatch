@@ -4,12 +4,13 @@ console.log('Content Script loaded!');
 const status = {
     STARTED: 'started',
     STOPPED: 'stopped',
-}
+    DONE: 'done'
+};
 const source = {
     BACKGROUND: 'background',
     PAGE: 'youtube',
     POPUP: 'popup'
-}
+};
 const event = {
     INIT: 'init',
     RESET: 'reset',
@@ -17,7 +18,8 @@ const event = {
     CLOSE_TAB: 'closeTab',
     START_COUNTDOWN: 'startCountdown',
     SHOW_ARTICLE: 'showArticle'
-}
+};
+const preset_times = { "30min": 30, "1h": 60, "2h": 120, "12h": 720 };
 
 const ONE_MINUTE_IN_MS = 60000;
 const ONE_MINUTE_IN_S = 60;
@@ -29,6 +31,7 @@ const MAX_MINUTES = 59;
 // Variables
 var currentTabId;
 var blurIntervalId;
+var isPresetAdded = false;
 
 injectSnackbar();
 injectTimerIcon();
@@ -92,7 +95,6 @@ function reset() {
  */
 function injectTimeModal() {
     // Add overlay
-    // var docHeight = $(document).height();
     var body = document.body,
         html = document.documentElement;
 
@@ -166,11 +168,28 @@ function injectTimeModal() {
         text-align: center;
         padding-bottom: 1rem;
     }
-    ui-button {
-        background-color: white !important;
+    .okButton {
+        background-color: rgb(96, 96, 255) !important;
+        border-radius: 4px;
+        border: none;
+        color: white;
+        font-weight: bold;
+        margin: 4px;
+        padding: 4px 1.5rem;
+        opacity: 0.4;
+        transition: 0.5s;
+    }
+    .okButton:hover {
+        opacity: 1;
+    }
+    input {
+        border-radius: 4px;
     }
     #estimated_hours, #estimated_minutes {
-        width: 40px
+        border: 1px solid grey;
+        border-radius: 4px;
+        padding-left: 5px;
+        width: 3.5rem;
     }
     #timeModalForm {
         padding-top: 1rem;
@@ -185,6 +204,8 @@ function injectTimeModal() {
     modalDiv.innerHTML = modalContent.trim();
     modalDiv.appendChild(style);
     document.body.appendChild(modalDiv);
+    !isPresetAdded ? addPresetTimes() : null;
+    isPresetAdded = true;
 }
 
 //TODO: Add suggested times
@@ -197,35 +218,39 @@ function showTimeModal() {
         $(function () {
             $("#timeModal").dialog({
                 height: "auto",
-                minHeight: 200,
-                maxHeight: 400,
+                minHeight: 185,
+                maxHeight: 350,
                 width: 200,
                 modal: true,
                 resizable: true,
                 dialogClass: 'no-close success-dialog',
                 autoOpen: true,
-                buttons: {
-                    'OK': function () {
-                        $("#estimated_hours").val().trim().length === 0 ? $("#estimated_hours").val(0) : null;
-                        $("#estimated_minutes").val().trim().length === 0 ? $("#estimated_minutes").val(0) : null;
-                        if ($('#timeModalForm').valid()) {
-                            var hours = $("#estimated_hours").val();
-                            var minutes = $("#estimated_minutes").val();
-                            var estimatedTime = (ONE_MINUTE_IN_S * minutes) + (ONE_HOUR_IN_S * hours);
-                            removeModal();
-                            if (estimatedTime <= 0) {
-                                chrome.runtime.sendMessage({ from: source.PAGE, event: event.CLOSE_TAB });
-                                return;
+                buttons: [
+                    {
+                        text: "OK",
+                        "class": 'okButton',
+                        click: function () {
+                            $("#estimated_hours").val().trim().length === 0 ? $("#estimated_hours").val(0) : null;
+                            $("#estimated_minutes").val().trim().length === 0 ? $("#estimated_minutes").val(0) : null;
+                            if ($('#timeModalForm').valid()) {
+                                var hours = $("#estimated_hours").val();
+                                var minutes = $("#estimated_minutes").val();
+                                var estimatedTime = (ONE_MINUTE_IN_S * minutes) + (ONE_HOUR_IN_S * hours);
+                                removeModal();
+                                if (estimatedTime <= 0) {
+                                    chrome.runtime.sendMessage({ from: source.PAGE, event: event.CLOSE_TAB });
+                                    return;
+                                }
+                                chrome.storage.sync.set({ 'remainingTime': estimatedTime }, function () {
+                                    chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_COUNTDOWN });
+                                });
+                                var lastCountdownStartDate = (new Date()).getTime();
+                                chrome.storage.sync.set({ 'lastCountdownStartDate': lastCountdownStartDate });
+                                countdown(estimatedTime);
                             }
-                            chrome.storage.sync.set({ 'remainingTime': estimatedTime }, function () {
-                                chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_COUNTDOWN });
-                            });
-                            var lastCountdownStartDate = (new Date()).getTime();
-                            chrome.storage.sync.set({ 'lastCountdownStartDate': lastCountdownStartDate });
-                            countdown(estimatedTime);
                         }
                     }
-                }
+                ],
             });
         });
         $('#timeModalForm').validate({
@@ -260,6 +285,55 @@ function removeModal() {
     });
 }
 
+function addPresetTimes() {
+    var presets_wrapper = document.createElement('div');
+    presets_wrapper.id = "presets_wrapper";
+    var presetStyle = document.createElement('style');
+    presetStyle.innerHTML = `
+    div#presets_wrapper {
+        display: flex;
+        margin: 0 2rem;
+        align-items: center;
+        align-content: space-between;
+        flex-direction: row;
+    }
+    div#preset {
+        text-align: center;
+        margin: 3px;
+        background: transparent;
+        border: 2px solid rgb(255, 56, 96);
+        border-radius: 5px;
+        padding: 5px;
+        color: black;
+        transition: 0.5s
+    }
+    div#preset:hover {
+        background-color: rgb(255, 56, 96);
+        color: white;
+        cursor: pointer;
+    }
+    div#preset:focus {
+          outline: 0;
+    }`;
+    var modalForm = document.getElementById('timeModalForm');
+    modalForm.appendChild(presets_wrapper);
+    modalForm.appendChild(presetStyle);
+    for (preset in preset_times) {
+        var newPreset = document.createElement('div');
+        newPreset.id = "preset";
+        newPreset.innerHTML = preset;
+        newPreset.setAttribute('data-value', preset_times[preset]);
+        newPreset.onclick = function (e) {
+            console.log(e.srcElement);
+            var val = e.srcElement.attributes['data-value'].value;
+            var hours = ~~(val / 60);
+            var minutes = ~~(val % 60);
+            $("#estimated_hours").val(hours);
+            $("#estimated_minutes").val(minutes);
+        };
+        presets_wrapper.appendChild(newPreset);
+    }
+}
 
 /*
  * BLUR effect
@@ -355,12 +429,12 @@ function injectSnackbar() {
 }
 
 function showSnackbar() {
-    var x = document.getElementById("snackbar");
-    x.className = "show";
-    x.onclick = function () {
-        x.className = x.className.replace("show", "hide");
+    var snackbar = document.getElementById("snackbar");
+    snackbar.className = "show";
+    snackbar.onclick = function () {
+        snackbar.className = snackbar.className.replace("show", "hide");
         setTimeout(function () {
-            x.className = x.className.replace("hide", "");
+            snackbar.className = snackbar.className.replace("hide", "");
         }, 500);
     };
 }

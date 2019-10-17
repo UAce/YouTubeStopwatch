@@ -3,7 +3,7 @@ const source = {
   BACKGROUND: 'background',
   PAGE: 'youtube',
   POPUP: 'popup'
-}
+};
 const event = {
   INIT: 'init',
   RESET: 'reset',
@@ -11,7 +11,7 @@ const event = {
   CLOSE_TAB: 'closeTab',
   START_COUNTDOWN: 'startCountdown',
   SHOW_ARTICLE: 'showArticle'
-}
+};
 
 // Variables
 var hours, minutes, seconds, remainingTime;

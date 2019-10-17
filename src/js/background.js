@@ -7,18 +7,18 @@ const status = {
     STARTED: 'started',
     STOPPED: 'stopped',
     DONE: 'done'
-}
+};
 const source = {
     BACKGROUND: 'background',
     PAGE: 'youtube',
     POPUP: 'popup'
-}
+};
 const color = {
     GREY: '#bbbdbb',
     RED: '#F50F0F',
     BLUE: '#1c2efc',
     GREEN: '#4bb543'
-}
+};
 const event = {
     INIT: 'init',
     RESET: 'reset',
@@ -26,7 +26,7 @@ const event = {
     CLOSE_TAB: 'closeTab',
     START_COUNTDOWN: 'startCountdown',
     SHOW_ARTICLE: 'showArticle'
-}
+};
 
 // Variables
 var active_youtube_tabs = [];
@@ -70,7 +70,7 @@ function removeYoutubeTab(tabId) {
     active_youtube_tabs.splice(idx, 1);
 
     if (active_youtube_tabs.length === 0) {
-        var isDone = remainingTime > 0 ? false : true;
+        var isDone = remainingTime > 0 || typeof (remainingTime) === 'undefined' ? false : true;
         stopCountdown(isDone);
     }
     console.log("Youtube tab closed", tabId, active_youtube_tabs);
