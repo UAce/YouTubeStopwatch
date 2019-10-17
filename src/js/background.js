@@ -91,7 +91,8 @@ function addListeners(tabId) {
                 } else {
                     chrome.tabs.sendMessage(tabId, {
                         from: source.BACKGROUND,
-                        event: event.INIT
+                        event: event.INIT,
+                        remainingTime: remainingTime
                     });
                 }
             });

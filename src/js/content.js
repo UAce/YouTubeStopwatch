@@ -42,7 +42,7 @@ chrome.runtime.onMessage.addListener(function (msg) {
     if (msg.from === source.BACKGROUND) {
         switch (msg.event) {
             case event.INIT:
-                init();
+                init(msg.remainingTime);
                 break;
             case event.RESET:
                 reset();
@@ -50,22 +50,19 @@ chrome.runtime.onMessage.addListener(function (msg) {
             case event.SNACKBAR:
                 showSnackbar();
                 break;
-            case event.SET:
-                console.log("SET:", msg.remainingTime);
-                break;
             default:
                 break;
         }
     }
 });
-init();
 
-function init() {
+function init(activeRemainingTime) {
     chrome.storage.sync.get(['countdown_status', 'remainingTime'], function (data) {
         var countdown_status = data.countdown_status;
-        var remainingTime = data.remainingTime;
+        var remainingTime = activeRemainingTime || data.remainingTime;
         console.log("Init ", remainingTime, "countdown");
         countdown(remainingTime);
+        removeModal();
         // Time limit reached, apply and increase blur every 5min
         if (remainingTime === -1) {
             blur();
@@ -193,6 +190,9 @@ function injectTimeModal() {
 //TODO: Add suggested times
 function showTimeModal() {
     injectTimeModal();
+    $('html, body').css({
+        overflow: 'hidden'
+    });
     $(document).ready(function () {
         $(function () {
             $("#timeModal").dialog({
@@ -212,8 +212,7 @@ function showTimeModal() {
                             var hours = $("#estimated_hours").val();
                             var minutes = $("#estimated_minutes").val();
                             var estimatedTime = (ONE_MINUTE_IN_S * minutes) + (ONE_HOUR_IN_S * hours);
-                            $('#timeModal').dialog('close');
-                            $("#overlayModal").remove();
+                            removeModal();
                             if (estimatedTime <= 0) {
                                 chrome.runtime.sendMessage({ from: source.PAGE, event: event.CLOSE_TAB });
                                 return;
@@ -255,6 +254,10 @@ function showTimeModal() {
 function removeModal() {
     $('#timeModal').dialog('close');
     $("#overlayModal").remove();
+    $('html, body').css({
+        overflow: 'auto',
+        height: 'auto'
+    });
 }
 
 
