@@ -1,10 +1,10 @@
-console.log('Content Script loaded!');
+// console.log('Content Script loaded!');
 
 // Constants
 const status = {
     STARTED: 'started',
     STOPPED: 'stopped',
-    DONE: 'done'
+    OVER: 'over'
 };
 const source = {
     BACKGROUND: 'background',
@@ -17,7 +17,8 @@ const event = {
     SNACKBAR: 'showSnackbar',
     CLOSE_TAB: 'closeTab',
     START_COUNTDOWN: 'startCountdown',
-    SHOW_ARTICLE: 'showArticle'
+    SHOW_ARTICLE: 'showArticle',
+    START_OVERTIME: 'startOvertime'
 };
 const preset_times = { "30min": 30, "1h": 60, "2h": 120, "12h": 720 };
 
@@ -41,11 +42,12 @@ chrome.runtime.sendMessage({ from: source.PAGE });
 
 // Get current tab id from background and add listeners to detect Tabs closed or Windows closed
 chrome.runtime.onMessage.addListener(function (msg) {
-    console.log("Content script received", msg);
+    // console.log("Content script received", msg);
     if (msg.from === source.BACKGROUND) {
+        // console.log(msg.event, " event received!");
         switch (msg.event) {
             case event.INIT:
-                init(msg.remainingTime);
+                init(msg.remainingTime, msg.timeOver);
                 break;
             case event.RESET:
                 reset();
@@ -53,21 +55,30 @@ chrome.runtime.onMessage.addListener(function (msg) {
             case event.SNACKBAR:
                 showSnackbar();
                 break;
+            case event.START_COUNTDOWN:
+                countdown(msg.remainingTime);
+                break;
+            case event.START_OVERTIME:
+                blur();
+                overtime(msg.timeOver);
+                break;
             default:
                 break;
         }
     }
 });
 
-function init(activeRemainingTime) {
-    chrome.storage.sync.get(['countdown_status', 'remainingTime'], function (data) {
+function init(activeRemainingTime, activeOverTime) {
+    chrome.storage.sync.get(['countdown_status', 'remainingTime', 'overtime_status', 'timeOver'], function (data) {
         var countdown_status = data.countdown_status;
         var remainingTime = activeRemainingTime || data.remainingTime;
-        console.log("Init ", remainingTime, "countdown");
-        countdown(remainingTime);
-        // removeModal();
+        var overtime_status = data.overtime_status;
+        var timeOver = activeOverTime || data.timeOver;
+        // console.log("Countdown:", countdown_status, remainingTime);
+        // console.log("Overtime:", overtime_status, timeOver);
         // Time limit reached, apply and increase blur every 5min
-        if (remainingTime === -1) {
+        if (countdown_status === status.OVER) {
+            overtime_status === status.STOPPED ? chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_OVERTIME }) : null;
             blur();
         } else if (countdown_status === status.STARTED && remainingTime > 0) {
             removeModal();
@@ -82,11 +93,11 @@ function init(activeRemainingTime) {
 
 function reset() {
     removeModal();
-    if (blurIntervalId) {
-        clearInterval(blurIntervalId);
-    }
-    var blur = document.getElementById('blurStyle');
-    blur && blur.remove();
+    clearInterval(blurIntervalId);
+    clearInterval(countdownIntervalId);
+    clearInterval(overtimeId);
+    $('#blurStyle').remove();
+    $('#time-remaining').removeClass('overtime');
     init();
 }
 
@@ -119,8 +130,8 @@ function injectTimeModal() {
     var style = document.createElement('style');
     style.innerHTML = `
     .ui-widget.success-dialog {
-        font-family: Verdana,Arial,sans-serif;
-        font-size: .8em;
+        font-family: var(--paper-font-common-base_-_font-family);
+        font-size: 12px;
     }
     
     .ui-widget-content.success-dialog {
@@ -128,6 +139,7 @@ function injectTimeModal() {
         border: 1px solid #982122;
         color: #222222;
         font-weight: bold;
+        border-radius: 5px;
     }
     
     .ui-dialog.success-dialog {
@@ -153,24 +165,31 @@ function injectTimeModal() {
         color: #fff;
         font-weight: bold;
         text-align: center;
+        border-top-left-radius: 3px;
+        border-top-right-radius: 3px;
     }
     
     .ui-dialog.success-dialog .ui-dialog-titlebar {
-        padding: 0.1em .5em;
+        padding: 8px 2px;
         position: relative;
-        font-size: 1em;
+        font-size: 15px;
+        font-family: var(--paper-font-common-base_-_font-family);
     }
 
     .ui-dialog-titlebar-close {
-        visibility: hidden;
+        display: none;
     }
     
     .ui-dialog-buttonpane {
+        clear: both;
         text-align: center;
-        padding-bottom: 1rem;
+        padding: 1rem 0;
+    }
+    .ui-dialog-buttonset {
+        padding: 0 1.5rem;
     }
     .okButton {
-        background-color: rgb(96, 96, 255) !important;
+        background-color: rgb(128,128,128) !important;
         border-radius: 4px;
         border: none;
         color: white;
@@ -179,12 +198,38 @@ function injectTimeModal() {
         padding: 4px 1.5rem;
         opacity: 0.4;
         transition: 0.5s;
+        cursor: not-allowed;
+        display: block;
+        margin: 1rem auto 0;
     }
-    .okButton:hover {
+    .okButton.valid {
+        background-color: rgb(96, 96, 255) !important;
         opacity: 1;
+        cursor: pointer;
     }
-    input {
-        border-radius: 4px;
+    .preset {
+        text-align: center;
+        margin: 3px;
+        background: transparent;
+        border: 2px solid rgb(255, 56, 96);
+        border-radius: 5px;
+        padding: 5px;
+        color: black;
+        transition: 0.5s
+    }
+    .preset:hover {
+        background-color: rgb(255, 56, 96);
+        color: white;
+        cursor: pointer;
+    }
+    .preset:focus {
+          outline: 0;
+    }
+    .modal_input {
+        font-family: var(--paper-font-common-base_-_font-family);
+    }
+    input:focus, button:focus {
+        outline: 0;
     }
     #estimated_hours, #estimated_minutes {
         border: 1px solid grey;
@@ -196,20 +241,36 @@ function injectTimeModal() {
         padding-top: 1rem;
     }
     #errorMessages{
+        min-height: 5px;
         color: red;
     }`;
 
     // Modal form
-    var modalContent = '<div id="timeModal" title="Estimated Time on YouTube:">' + '<form id="timeModalForm" method="post">' + '<div style="float:left;padding-left:1rem;"><label>Hours: </label>' + '<input id="estimated_hours" name="estimated_hours" type="number"></div>' + '<div style="float:left;padding-left:1rem;"><label>Minutes: </label>' + '<input id="estimated_minutes" name="estimated_minutes" type="number"></div>' + '<div style="padding:1rem 0;clear:both;text-align:center" id="errorMessages"></div><div id="presets_wrapper"></div>' + '</form>' + '</div>';
+    var modalContent = '<div id="timeModal" title="Estimated Time on YouTube">' + '<form id="timeModalForm" method="post">' + '<div style="float:left;padding-left:1rem;"><label class="modal_input">Hours: </label>' + '<input id="estimated_hours" name="estimated_hours" type="number"></div>' + '<div style="float:left;padding-left:1rem;"><label class="modal_input">Minutes: </label>' + '<input id="estimated_minutes" name="estimated_minutes" type="number"></div>' + '<div style="padding-top:1rem;clear:both;text-align:center;display: none;" id="errorMessages"></div>' + '</form>' + '</div>';
     var modalDiv = document.createElement('div');
     modalDiv.id = "modal-container";
     modalDiv.innerHTML = modalContent.trim();
     modalDiv.appendChild(style);
     document.body.appendChild(modalDiv);
-    addPresetTimes();
+
+    $('#estimated_hours').on('input', function () {
+        changeOkButtonStatus();
+    });
+    $('#estimated_minutes').on('input', function () {
+        changeOkButtonStatus();
+    });
+}
+function changeOkButtonStatus() {
+    $('#timeModalForm').valid() ? focusOkButton() : blurOkButton(0);
+}
+function focusOkButton() {
+    $('.okButton').addClass('valid').removeAttr("disabled");
 }
 
-//TODO: Add suggested times
+function blurOkButton() {
+    $('.okButton').removeClass('valid').attr("disabled", true).blur();
+}
+
 function showTimeModal() {
     injectTimeModal();
     $('html, body').css({
@@ -217,6 +278,59 @@ function showTimeModal() {
     });
     $(document).ready(function () {
         $(function () {
+            var modalButtons = [];
+            var OkButton = {
+                text: "OK",
+                "class": 'okButton',
+                click: function () {
+                    // Invalid if both are empty, else if one of them is empty, set it to 0
+                    var isHoursEmpty = $("#estimated_hours").val().trim().length === 0;
+                    var isMinutesEmpty = $("#estimated_minutes").val().trim().length === 0;
+                    if (isHoursEmpty && isMinutesEmpty) {
+                        $("#estimated_hours").val(undefined); $("#estimated_minutes").val(undefined);
+                        blurOkButton();
+                        return;
+                    } else {
+                        isHoursEmpty ? $("#estimated_hours").val(0) : null;
+                        isMinutesEmpty ? $("#estimated_minutes").val(0) : null;
+                    }
+                    if ($('#timeModalForm').valid()) {
+                        var hours = $("#estimated_hours").val();
+                        var minutes = $("#estimated_minutes").val();
+                        var estimatedTime = (ONE_MINUTE_IN_S * minutes) + (ONE_HOUR_IN_S * hours);
+                        if (estimatedTime <= 0) {
+                            chrome.runtime.sendMessage({ from: source.PAGE, event: event.CLOSE_TAB });
+                        } else {
+                            chrome.storage.sync.set({ 'remainingTime': estimatedTime }, function () {
+                                chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_COUNTDOWN });
+                                chrome.runtime.sendMessage({ from: source.PAGE, event: event.INIT });
+                            });
+                            var lastCountdownStartDate = (new Date()).getTime();
+                            chrome.storage.sync.set({ 'lastCountdownStartDate': lastCountdownStartDate });
+                            countdown(estimatedTime);
+                        }
+                        $(this).dialog("close");
+                        removeModal();
+                    }
+                }
+            };
+            for (preset in preset_times) {
+                var newPreset = {
+                    text: preset,
+                    "class": "preset",
+                    "value": preset_times[preset],
+                    click: function (e) {
+                        var val = e.target.value;
+                        var hours = ~~(val / 60);
+                        var minutes = ~~(val % 60);
+                        $("#estimated_hours").val(hours);
+                        $("#estimated_minutes").val(minutes);
+                        focusOkButton();
+                    }
+                };
+                modalButtons.push(newPreset);
+            }
+            modalButtons.push(OkButton);
             $("#timeModal").dialog({
                 height: "auto",
                 minHeight: 185,
@@ -226,32 +340,8 @@ function showTimeModal() {
                 resizable: true,
                 dialogClass: 'no-close success-dialog',
                 autoOpen: true,
-                buttons: [
-                    {
-                        text: "OK",
-                        "class": 'okButton',
-                        click: function () {
-                            $("#estimated_hours").val().trim().length === 0 ? $("#estimated_hours").val(0) : null;
-                            $("#estimated_minutes").val().trim().length === 0 ? $("#estimated_minutes").val(0) : null;
-                            if ($('#timeModalForm').valid()) {
-                                var hours = $("#estimated_hours").val();
-                                var minutes = $("#estimated_minutes").val();
-                                var estimatedTime = (ONE_MINUTE_IN_S * minutes) + (ONE_HOUR_IN_S * hours);
-                                removeModal();
-                                if (estimatedTime <= 0) {
-                                    chrome.runtime.sendMessage({ from: source.PAGE, event: event.CLOSE_TAB });
-                                    return;
-                                }
-                                chrome.storage.sync.set({ 'remainingTime': estimatedTime }, function () {
-                                    chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_COUNTDOWN });
-                                });
-                                var lastCountdownStartDate = (new Date()).getTime();
-                                chrome.storage.sync.set({ 'lastCountdownStartDate': lastCountdownStartDate });
-                                countdown(estimatedTime);
-                            }
-                        }
-                    }
-                ],
+                draggable: false,
+                buttons: modalButtons
             });
         });
         $('#timeModalForm').validate({
@@ -259,12 +349,10 @@ function showTimeModal() {
             errorLabelContainer: "#errorMessages",
             rules: {
                 estimated_hours: {
-                    required: true,
                     range: [0, MAX_HOURS],
                     digits: true
                 },
                 estimated_minutes: {
-                    required: true,
                     range: [0, MAX_MINUTES],
                     digits: true
                 }
@@ -278,59 +366,13 @@ function showTimeModal() {
 }
 
 function removeModal() {
+    $("#timeModal").dialog("close");
     $("#timeModal").dialog('destroy').remove();
     $('#overlayModal').remove();
     $('html, body').css({
         overflow: 'auto',
         height: 'auto'
     });
-}
-
-function addPresetTimes() {
-    var presets_wrapper = document.getElementById('presets_wrapper');
-    var presetStyle = document.createElement('style');
-    presetStyle.innerHTML = `
-    div#presets_wrapper {
-        display: flex;
-        margin: 0 2rem;
-        align-items: center;
-        align-content: space-between;
-        flex-direction: row;
-    }
-    div#preset {
-        text-align: center;
-        margin: 3px;
-        background: transparent;
-        border: 2px solid rgb(255, 56, 96);
-        border-radius: 5px;
-        padding: 5px;
-        color: black;
-        transition: 0.5s
-    }
-    div#preset:hover {
-        background-color: rgb(255, 56, 96);
-        color: white;
-        cursor: pointer;
-    }
-    div#preset:focus {
-          outline: 0;
-    }`;
-    var modalForm = document.getElementById('timeModalForm');
-    modalForm.appendChild(presetStyle);
-    for (preset in preset_times) {
-        var newPreset = document.createElement('div');
-        newPreset.id = "preset";
-        newPreset.innerHTML = preset;
-        newPreset.setAttribute('data-value', preset_times[preset]);
-        newPreset.onclick = function (e) {
-            var val = e.srcElement.attributes['data-value'].value;
-            var hours = ~~(val / 60);
-            var minutes = ~~(val % 60);
-            $("#estimated_hours").val(hours);
-            $("#estimated_minutes").val(minutes);
-        };
-        presets_wrapper.appendChild(newPreset);
-    }
 }
 
 /*
@@ -407,6 +449,7 @@ function injectSnackbar() {
 
     #snackbar:hover {
         box-shadow: 0 0 5px #00fffb;
+        background-color: #4d4d4d;
     }
       
     @-webkit-keyframes fadein {
@@ -435,12 +478,22 @@ function injectSnackbar() {
 function showSnackbar() {
     var snackbar = document.getElementById("snackbar");
     snackbar.className = "show";
+
+    // Auto hide after 1min
+    var autoHide = setTimeout(function () {
+        snackbar.className = snackbar.className.replace("show", "");
+    }, ONE_MINUTE_IN_MS);
+
+    // Hide on click
     snackbar.onclick = function () {
         snackbar.className = snackbar.className.replace("show", "hide");
         setTimeout(function () {
             snackbar.className = snackbar.className.replace("hide", "");
+            clearTimeout(autoHide);
         }, 500);
     };
+    var displayedTime = document.getElementById('time-remaining');
+    displayedTime.classList.add('warning');
 }
 
 /*
@@ -497,6 +550,20 @@ function injectTimerIcon() {
         padding: 0.75rem;
         border-radius: 5px;
         background-color: var(--paper-tooltip-background, #616161);
+      }
+
+      .warning {
+        color: rgba(255, 255, 0, 1);
+        animation: blink-warning 1s linear infinite;
+      }
+      @keyframes blink-warning {
+        50% {
+            color: rgba(255, 255, 0, 0.5);
+        }
+      }
+
+      .overtime {
+        color: rgb(245, 15, 15, 1);
       }`;
     containerDiv.appendChild(tooltipStyle);
 
@@ -512,34 +579,62 @@ function injectTimerIcon() {
 var countdownIntervalId, remainingTime, hours, minutes, seconds;
 
 function countdown(seconds) {
+    clearInterval(overtimeId);
     var now = new Date().getTime();
     var target = new Date(now + seconds * 1000);
     var update = 500;
-    var tooltip = document.getElementById('time-remaining');
+    var displayedTime = document.getElementById('time-remaining');
     if (countdownIntervalId) {
         clearInterval(countdownIntervalId);
         countdownIntervalId = null;
     }
-    if (seconds === 0) {
-        tooltip.innerHTML = "Timer has not been set";
-    }
     countdownIntervalId = setInterval(function () {
         var now = new Date();
         remainingTime = (target - now) / 1000;
-
+        // console.log("Time Remaining:", remainingTime);
         if (remainingTime < 0) {
             remainingTime = -1;
-            tooltip.innerHTML = "Time's up!!";
+            displayedTime.classList.remove('warning');
+            displayedTime.innerHTML = "Time's up!!";
             clearInterval(countdownIntervalId);
         } else {
             var hours = ~~((remainingTime / 3600));
             var minutes = ~~((remainingTime / 60) % 60);
             var seconds = ~~(remainingTime % 60);
-            tooltip.innerHTML = format(hours) + ":" + format(minutes) + ":" + format(seconds);
+            displayedTime.innerHTML = format(hours) + ":" + format(minutes) + ":" + format(seconds);
         }
     }, update);
 }
 
 function format(num) {
     return num < 10 ? "0" + num : num;
+}
+
+/*
+ * Start Overtime on YouTube page
+*/
+var overtimeId, timeOver, hoursOver, minutesOver, secondsOver;
+
+function overtime(savedTimeOver) {
+    clearInterval(countdownIntervalId);
+    var start = new Date().getTime();
+    var update = 500;
+    var displayedTime = document.getElementById('time-remaining');
+    displayedTime.classList.add('overtime');
+    if (overtimeId) {
+        clearInterval(overtimeId);
+        overtimeId = null;
+    }
+    overtimeId = setInterval(function () {
+        var now = new Date();
+        timeOver = (now - start) / 1000;
+        if (savedTimeOver) {
+            timeOver += savedTimeOver;
+        }
+        // console.log("Time Over:", timeOver);
+        hoursOver = ~~((timeOver / 3600));
+        minutesOver = ~~((timeOver / 60) % 60);
+        secondsOver = ~~(timeOver % 60);
+        displayedTime.innerHTML = format(hoursOver) + ":" + format(minutesOver) + ":" + format(secondsOver);
+    }, update);
 }

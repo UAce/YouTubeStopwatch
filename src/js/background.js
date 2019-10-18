@@ -1,12 +1,12 @@
 'use strict';
 
-console.log('background script loaded!');
+// console.log('background script loaded!');
 
 // Constants
 const status = {
     STARTED: 'started',
     STOPPED: 'stopped',
-    DONE: 'done'
+    OVER: 'over'
 };
 const source = {
     BACKGROUND: 'background',
@@ -25,19 +25,33 @@ const event = {
     SNACKBAR: 'showSnackbar',
     CLOSE_TAB: 'closeTab',
     START_COUNTDOWN: 'startCountdown',
-    SHOW_ARTICLE: 'showArticle'
+    SHOW_ARTICLE: 'showArticle',
+    START_OVERTIME: 'startOvertime'
 };
 
 // Variables
 var active_youtube_tabs = [];
 var FIVE_MINUTES_IN_S = 300;
+var countdown_status, overtime_status;
 
 chrome.runtime.onInstalled.addListener(function () {
-    stopCountdown(); // make sure countdown is stopped if reload extension
+    reset(); // make sure to reset if reload extension
     chrome.runtime.onMessage.addListener(function (msg, sender) {
         var tabId = sender.tab ? sender.tab.id : null;
         if (msg.from === source.PAGE && active_youtube_tabs.indexOf(tabId) < 0) {
             active_youtube_tabs.push(tabId);
+            var eventToYouTube = event.INIT;
+            if (countdown_status === status.STARTED) {
+                eventToYouTube = event.START_COUNTDOWN;
+            } else if (overtime_status === status.STARTED) {
+                eventToYouTube = event.START_OVERTIME;
+            }
+            chrome.tabs.sendMessage(tabId, {
+                from: source.BACKGROUND,
+                event: eventToYouTube,
+                remainingTime: remainingTime,
+                timeOver: timeOver
+            });
             addListeners(tabId);
             chrome.storage.sync.get(['countdown_status'], function (data) {
                 setBadge(data.countdown_status);
@@ -46,6 +60,9 @@ chrome.runtime.onInstalled.addListener(function () {
         switch (msg.event) {
             case event.START_COUNTDOWN:
                 startCountdown();
+                break;
+            case event.START_OVERTIME:
+                startOvertime();
                 break;
             case event.CLOSE_TAB:
                 tabId && chrome.tabs.remove(tabId);
@@ -59,6 +76,11 @@ chrome.runtime.onInstalled.addListener(function () {
                 });
                 reset();
                 break;
+            case event.INIT:
+                active_youtube_tabs.forEach(function (id) {
+                    chrome.tabs.sendMessage(id, { from: source.BACKGROUND, event: event.INIT });
+                });
+                break;
             default:
                 break;
         }
@@ -70,14 +92,15 @@ function removeYoutubeTab(tabId) {
     active_youtube_tabs.splice(idx, 1);
 
     if (active_youtube_tabs.length === 0) {
-        var isDone = remainingTime > 0 || typeof (remainingTime) === 'undefined' ? false : true;
-        stopCountdown(isDone);
+        var isOver = remainingTime > 0 || typeof (remainingTime) === 'undefined' ? false : true;
+        stopCountdown(isOver);
+        stopOvertime();
     }
-    console.log("Youtube tab closed", tabId, active_youtube_tabs);
+    // console.log("Youtube tab closed", tabId, active_youtube_tabs);
 }
 
 function addListeners(tabId) {
-    console.log("Youtube tab opened", tabId);
+    // console.log("Youtube tab opened", tabId);
     chrome.tabs.onRemoved.addListener(function (id) {
         if (tabId === id) {
             removeYoutubeTab(tabId);
@@ -88,12 +111,6 @@ function addListeners(tabId) {
             chrome.tabs.get(tabId, function (tab) {
                 if (tab.url.indexOf('youtube.com') < 0) {
                     removeYoutubeTab(tabId);
-                } else {
-                    chrome.tabs.sendMessage(tabId, {
-                        from: source.BACKGROUND,
-                        event: event.INIT,
-                        remainingTime: remainingTime
-                    });
                 }
             });
         }
@@ -106,8 +123,8 @@ function setBadge(state) {
             chrome.browserAction.setBadgeText({ text: 'ON' });
             chrome.browserAction.setBadgeBackgroundColor({ color: color.GREEN });
             break;
-        case status.DONE:
-            chrome.browserAction.setBadgeText({ 'text': 'DONE' });
+        case status.OVER:
+            chrome.browserAction.setBadgeText({ 'text': 'OVER' });
             chrome.browserAction.setBadgeBackgroundColor({ color: color.RED });
             break;
         case status.STOPPED:
@@ -120,15 +137,17 @@ function setBadge(state) {
 }
 
 function printEvent(ev) {
-    console.log("________________\n\n" + ev + "\n________________\n\n");
+    // console.log("________________\n\n" + ev + "\n________________\n\n");
 }
 
 function reset() {
-    chrome.storage.sync.set({ 'countdown_status': status.STOPPED });
     chrome.storage.sync.set({ 'blur_value': 0 });
     remainingTime = 0;
     remainingHours = remainingMinutes = remainingSeconds = undefined;
+    timeOver = 0;
+    hoursOver = minutesOver = secondsOver = undefined;
     stopCountdown();
+    stopOvertime();
 }
 
 /*
@@ -145,6 +164,7 @@ function countdown(seconds) {
     countdownId = setInterval(function () {
         var now = new Date();
         remainingTime = (target - now) / 1000;
+        // console.log("Time Remaining:", remainingTime);
         if (remainingTime < 0) {
             remainingTime = -1;
             stopCountdown(true);
@@ -156,9 +176,10 @@ function countdown(seconds) {
                 });
             } else {
                 active_youtube_tabs.forEach(function (id) {
-                    chrome.tabs.sendMessage(id, { from: source.BACKGROUND, event: event.INIT });
+                    chrome.tabs.sendMessage(id, { from: source.BACKGROUND, event: event.START_OVERTIME });
                 });
                 showArticle();
+                startOvertime();
             }
             return;
         }
@@ -178,21 +199,23 @@ function startCountdown() {
     printEvent('START COUNTDOWN');
     chrome.storage.sync.get(['remainingTime'], function (data) {
         countdown(data.remainingTime);
-        // countdown(304);
+        // countdown(3);
         chrome.storage.sync.set({ 'countdown_status': status.STARTED });
+        countdown_status = status.STARTED;
         setBadge(status.STARTED);
         active_youtube_tabs.forEach(function (id) {
-            chrome.tabs.sendMessage(id, { from: source.BACKGROUND, event: event.INIT });
+            chrome.tabs.sendMessage(id, { from: source.BACKGROUND, event: event.START_COUNTDOWN, remainingTime: data.remainingTime });
         });
     });
 }
 
-function stopCountdown(isDone) {
+function stopCountdown(isOver) {
     printEvent('STOP COUNTDOWN');
     clearInterval(countdownId);
-    var state = isDone ? status.DONE : status.STOPPED;
+    var state = isOver ? status.OVER : status.STOPPED;
     chrome.storage.sync.set({ 'remainingTime': remainingTime });
     chrome.storage.sync.set({ 'countdown_status': state });
+    countdown_status = state;
     setBadge(state);
 }
 
@@ -215,4 +238,52 @@ function showArticle() {
 
 function randomIntFromInterval(min, max) {
     return Math.floor(Math.random() * (max - min + 1) + min);
+}
+
+
+/*
+ * Overtime
+*/
+var overtimeId, timeOver, hoursOver, minutesOver, secondsOver;
+
+function overtime(savedTimeOver) {
+    var start = new Date().getTime();
+    var update = 500;
+
+    overtimeId = setInterval(function () {
+        var now = new Date();
+        timeOver = (now - start) / 1000;
+        if (savedTimeOver) {
+            timeOver += savedTimeOver;
+        }
+        // console.log("Time Over:", timeOver);
+        if (timeOver === 300) {
+            showArticle();
+        }
+        hoursOver = ~~((timeOver / 3600));
+        minutesOver = ~~((timeOver / 60) % 60);
+        secondsOver = ~~(timeOver % 60);
+    }, update);
+}
+
+function startOvertime() {
+    printEvent('START OVERTIME');
+    chrome.storage.sync.get(['timeOver'], function (data) {
+        overtime(data.timeOver);
+        setBadge(status.OVER);
+        chrome.storage.sync.set({ 'overtime_status': status.STARTED });
+        overtime_status = status.STARTED;
+        active_youtube_tabs.forEach(function (id) {
+            chrome.tabs.sendMessage(id, { from: source.BACKGROUND, event: event.START_OVERTIME, timeOver: data.timeOver });
+        });
+    });
+}
+
+function stopOvertime() {
+    printEvent('STOP OVERTIME', overtimeId);
+    clearInterval(overtimeId);
+    chrome.storage.sync.set({ 'timeOver': timeOver });
+    chrome.storage.sync.set({ 'overtime_status': status.STOPPED });
+    overtime_status = status.STOPPED;
+    setBadge(status.STOPPED);
 }
