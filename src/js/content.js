@@ -24,6 +24,7 @@ const preset_times = { "30min": 30, "1h": 60, "2h": 120, "12h": 720 };
 
 const ONE_MINUTE_IN_MS = 60000;
 const ONE_MINUTE_IN_S = 60;
+const FIVE_MINUTES_IN_S = 300;
 const ONE_HOUR_IN_S = 3600;
 const MAX_BLUR_VAL = 20;
 const MAX_HOURS = 23;
@@ -69,13 +70,10 @@ chrome.runtime.onMessage.addListener(function (msg) {
 });
 
 function init(activeRemainingTime, activeOverTime) {
-    chrome.storage.sync.get(['countdown_status', 'remainingTime', 'overtime_status', 'timeOver'], function (data) {
+    chrome.storage.sync.get(['countdown_status', 'remainingTime', 'overtime_status'], function (data) {
         var countdown_status = data.countdown_status;
         var remainingTime = activeRemainingTime || data.remainingTime;
         var overtime_status = data.overtime_status;
-        var timeOver = activeOverTime || data.timeOver;
-        // console.log("Countdown:", countdown_status, remainingTime);
-        // console.log("Overtime:", overtime_status, timeOver);
         // Time limit reached, apply and increase blur every 5min
         if (countdown_status === status.OVER) {
             overtime_status === status.STOPPED ? chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_OVERTIME }) : null;
@@ -482,7 +480,7 @@ function showSnackbar() {
     // Auto hide after 1min
     var autoHide = setTimeout(function () {
         snackbar.className = snackbar.className.replace("show", "");
-    }, ONE_MINUTE_IN_MS);
+    }, ONE_MINUTE_IN_MS / 2);
 
     // Hide on click
     snackbar.onclick = function () {
@@ -492,8 +490,6 @@ function showSnackbar() {
             clearTimeout(autoHide);
         }, 500);
     };
-    var displayedTime = document.getElementById('time-remaining');
-    displayedTime.classList.add('warning');
 }
 
 /*
@@ -558,7 +554,7 @@ function injectTimerIcon() {
       }
       @keyframes blink-warning {
         50% {
-            color: rgba(255, 255, 0, 0.5);
+            color: rgba(255, 255, 177, 0.6);
         }
       }
 
@@ -597,6 +593,8 @@ function countdown(seconds) {
             displayedTime.classList.remove('warning');
             displayedTime.innerHTML = "Time's up!!";
             clearInterval(countdownIntervalId);
+        } else if (!$('#time-remaining').hasClass('warning') && remainingTime < FIVE_MINUTES_IN_S) {
+            $('#time-remaining').addClass('warning');
         } else {
             var hours = ~~((remainingTime / 3600));
             var minutes = ~~((remainingTime / 60) % 60);
