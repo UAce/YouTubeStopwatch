@@ -76,14 +76,18 @@ function init(activeRemainingTime, activeOverTime) {
         var overtime_status = data.overtime_status;
         // Time limit reached, apply and increase blur every 5min
         if (countdown_status === status.OVER) {
+            // console.log("1:", countdown_status);
             overtime_status === status.STOPPED ? chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_OVERTIME }) : null;
             blur();
         } else if (countdown_status === status.STARTED && remainingTime > 0) {
+            // console.log("2:", countdown_status, remainingTime);
             removeModal();
             return;
         } else if (countdown_status === status.STOPPED && remainingTime > 0) {
+            // console.log("3:", countdown_status, remainingTime);
             chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_COUNTDOWN });
         } else {
+            // console.log("4:", countdown_status);
             showTimeModal(); //temp solution
         }
     });

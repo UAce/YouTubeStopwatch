@@ -92,7 +92,7 @@ function removeYoutubeTab(tabId) {
     active_youtube_tabs.splice(idx, 1);
 
     if (active_youtube_tabs.length === 0) {
-        var isOver = remainingTime > 0 || typeof (remainingTime) === 'undefined' ? false : true;
+        var isOver = countdown_status === status.OVER ? true : false;
         stopCountdown(isOver);
         stopOvertime();
     }
