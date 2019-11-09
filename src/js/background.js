@@ -38,6 +38,7 @@ chrome.runtime.onInstalled.addListener(function () {
     reset(); // make sure to reset if reload extension
     chrome.runtime.onMessage.addListener(function (msg, sender) {
         var tabId = sender.tab ? sender.tab.id : null;
+        // console.log("Received from", tabId, msg);
         if (msg.from === source.PAGE && active_youtube_tabs.indexOf(tabId) < 0) {
             active_youtube_tabs.push(tabId);
             var eventToYouTube = event.INIT;
