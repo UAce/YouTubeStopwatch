@@ -34,9 +34,15 @@ const MAX_MINUTES = 59;
 var currentTabId;
 var blurIntervalId;
 var isPresetAdded = false;
+var isPageReady = false;
+var pageReadyIntervalId;
 
-injectSnackbar();
-injectTimerIcon();
+pageReadyIntervalId = setInterval(function () {
+    injectComponent();
+    if (isPageReady) {
+        clearInterval(pageReadyIntervalId);
+    }
+}, 1000);
 
 // Send message to background.js to get tab Id
 chrome.runtime.sendMessage({ from: source.PAGE });
@@ -68,6 +74,17 @@ chrome.runtime.onMessage.addListener(function (msg) {
         }
     }
 });
+
+function injectComponent() {
+    try {
+        injectSnackbar();
+        injectTimerIcon();
+        isPageReady = true;
+    }
+    catch (err) {
+        console.error(err);
+    }
+}
 
 function init(activeRemainingTime, activeOverTime) {
     chrome.storage.sync.get(['countdown_status', 'remainingTime', 'overtime_status'], function (data) {
