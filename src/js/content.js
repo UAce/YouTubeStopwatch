@@ -339,7 +339,6 @@ function showTimeModal() {
                             var lastCountdownStartDate = (new Date()).getTime();
                             chrome.storage.sync.set({ 'lastCountdownStartDate': lastCountdownStartDate });
                             countdown(estimatedTime);
-                            showSnackbar();
                         }
                         $(this).dialog("close");
                         removeModal();
