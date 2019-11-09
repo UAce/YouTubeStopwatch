@@ -13,6 +13,7 @@ const source = {
 };
 const event = {
     INIT: 'init',
+    INIT_ALL: 'initAll',
     RESET: 'reset',
     SNACKBAR: 'showSnackbar',
     CLOSE_TAB: 'closeTab',
@@ -20,6 +21,12 @@ const event = {
     SHOW_ARTICLE: 'showArticle',
     START_OVERTIME: 'startOvertime'
 };
+const color = {
+    GREY: '#bbbdbb',
+    RED: '#F50F0F',
+    BLUE: '#1c2efc',
+    GREEN: '#4bb543'
+}
 const preset_times = { "30min": 30, "1h": 60, "2h": 120, "12h": 720 };
 
 const ONE_MINUTE_IN_MS = 60000;
@@ -34,6 +41,8 @@ const MAX_MINUTES = 59;
 var currentTabId;
 var blurIntervalId;
 var isPresetAdded = false;
+var localCountdownStarted = false;
+var localOvertimeStarted = false;
 var isPageReady = false;
 var pageReadyIntervalId;
 
@@ -86,25 +95,28 @@ function injectComponent() {
     }
 }
 
-function init(activeRemainingTime, activeOverTime) {
-    chrome.storage.sync.get(['countdown_status', 'remainingTime', 'overtime_status'], function (data) {
+function init(activeRemainingTime, activeTimeOver) {
+    chrome.storage.sync.get(['countdown_status', 'remainingTime', 'overtime_status', 'timeOver'], function (data) {
         var countdown_status = data.countdown_status;
         var remainingTime = activeRemainingTime || data.remainingTime;
         var overtime_status = data.overtime_status;
+        var timeOver = activeTimeOver || data.timeOver;
         // Time limit reached, apply and increase blur every 5min
         if (countdown_status === status.OVER) {
-            // console.log("1:", countdown_status);
+            // console.log("1. countdown_status:", countdown_status, ", overtime_status:", overtime_status, "timer over:", timeOver, ", over time started:", localOvertimeStarted);
             overtime_status === status.STOPPED ? chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_OVERTIME }) : null;
             blur();
+            localOvertimeStarted ? null : overtime(timeOver);
         } else if (countdown_status === status.STARTED && remainingTime > 0) {
-            // console.log("2:", countdown_status, remainingTime);
+            // console.log("2. countdown_status:", countdown_status, ", remaining time:", remainingTime, ", local countdown started:", localCountdownStarted);
             removeModal();
+            localCountdownStarted ? null : countdown(remainingTime);
             return;
         } else if (countdown_status === status.STOPPED && remainingTime > 0) {
-            // console.log("3:", countdown_status, remainingTime);
+            // console.log("3. countdown_status:", countdown_status, ", remaining time:", remainingTime);
             chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_COUNTDOWN });
         } else {
-            // console.log("4:", countdown_status);
+            // console.log("4. countdown_status:", countdown_status);
             showTimeModal(); //temp solution
         }
     });
@@ -117,7 +129,7 @@ function reset() {
     clearInterval(overtimeId);
     $('#blurStyle').remove();
     $('#time-remaining').removeClass('overtime');
-    init();
+    chrome.runtime.sendMessage({ from: source.PAGE, event: event.INIT });
 }
 
 
@@ -322,11 +334,12 @@ function showTimeModal() {
                         } else {
                             chrome.storage.sync.set({ 'remainingTime': estimatedTime }, function () {
                                 chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_COUNTDOWN });
-                                chrome.runtime.sendMessage({ from: source.PAGE, event: event.INIT });
+                                chrome.runtime.sendMessage({ from: source.PAGE, event: event.INIT_ALL });
                             });
                             var lastCountdownStartDate = (new Date()).getTime();
                             chrome.storage.sync.set({ 'lastCountdownStartDate': lastCountdownStartDate });
                             countdown(estimatedTime);
+                            showSnackbar();
                         }
                         $(this).dialog("close");
                         removeModal();
@@ -407,19 +420,18 @@ function blur() {
             var style = document.createElement('style');
             style.id = 'blurStyle';
             style.innerHTML = `
-                    video, ytd-thumbnail {
+                video, yt-img-shadow, ytd-moving-thumbnail-renderer, div.ytp-videowall-still-image {
                         filter: blur(${val}px);
-                    }`;
+                }`;
             document.body.parentElement.appendChild(style);
 
             // Incremental blur every minute
             blurIntervalId = setInterval(function () {
                 val >= MAX_BLUR_VAL ? clearInterval(blurIntervalId) : val++;
-                var blurStyle = document.getElementById('blurStyle');
-                blurStyle.innerHTML = `
-                    video, yt-img-shadow, ytd-moving-thumbnail-renderer {
-                        filter: blur(${val}px);
-                    }`;
+                $('#blurStyle').html(`
+                video, yt-img-shadow, ytd-moving-thumbnail-renderer, div.ytp-videowall-still-image {
+                    filter: blur(${val}px);
+                }`);
                 chrome.storage.sync.set({ 'blur_value': val });
             }, ONE_MINUTE_IN_MS);
         });
@@ -439,55 +451,51 @@ function injectSnackbar() {
         visibility: hidden;
         min-width: 250px;
         margin-left: -125px;
-        background-color: #333;
-        color: #fff;
+        background-color: ${color.RED};
+        color: #333;
+        font-weight: bold;
         text-align: center;
         border-radius: 2px;
         padding: 16px;
         position: fixed;
         z-index: 1;
         left: 50%;
-        bottom: 30px;
+        bottom: 45px;
         font-size: 17px;
         cursor: pointer;
         box-shadow: 0;
-        transition: box-shadow 0.3s;
+        transition: background-color 0.5s ease, box-shadow 0.5s ease, color 0.5s ease;
     }
       
     #snackbar.show {
         visibility: visible;
-        -webkit-animation: fadein 0.5s;
-        animation: fadein 0.5s;
-    }
-
-    #snackbar.hide {
-        visibility: visible;
-        -webkit-animation: fadeout 0.5s;
-        animation: fadeout 0.5s;
+        -webkit-animation: fadein 0.5s, fadeout 0.5s 29.75s;
+        animation: fadein 0.5s, fadeout 0.5s 29.75s;
     }
 
     #snackbar:hover {
-        box-shadow: 0 0 5px #00fffb;
-        background-color: #4d4d4d;
+        box-shadow: 0 0 5px ${color.RED};
+        background-color: #333;
+        color: #fff;
     }
       
     @-webkit-keyframes fadein {
         from {bottom: 0; opacity: 0;} 
-        to {bottom: 30px; opacity: 1;}
+        to {bottom: 45px; opacity: 1;}
     }
       
     @keyframes fadein {
         from {bottom: 0; opacity: 0;}
-        to {bottom: 30px; opacity: 1;}
+        to {bottom: 45px; opacity: 1;}
     }
       
     @-webkit-keyframes fadeout {
-        from {bottom: 30px; opacity: 1;} 
+        from {bottom: 45px; opacity: 1;} 
         to {bottom: 0; opacity: 0;}
     }
       
     @keyframes fadeout {
-        from {bottom: 30px; opacity: 1;}
+        from {bottom: 45px; opacity: 1;}
         to {bottom: 0; opacity: 0;}
     }`;
     snackDiv.appendChild(style);
@@ -501,15 +509,11 @@ function showSnackbar() {
     // Auto hide after 1min
     var autoHide = setTimeout(function () {
         snackbar.className = snackbar.className.replace("show", "");
-    }, ONE_MINUTE_IN_MS / 2);
+    }, 30000);
 
-    // Hide on click
     snackbar.onclick = function () {
-        snackbar.className = snackbar.className.replace("show", "hide");
-        setTimeout(function () {
-            snackbar.className = snackbar.className.replace("hide", "");
-            clearTimeout(autoHide);
-        }, 500);
+        snackbar.className = snackbar.className.replace("show", "");
+        clearTimeout(autoHide);
     };
 }
 
@@ -596,23 +600,22 @@ function injectTimerIcon() {
 var countdownIntervalId, remainingTime, hours, minutes, seconds;
 
 function countdown(seconds) {
+    localCountdownStarted = true;
     clearInterval(overtimeId);
     var now = new Date().getTime();
     var target = new Date(now + seconds * 1000);
     var update = 500;
-    var displayedTime = document.getElementById('time-remaining');
-    if (countdownIntervalId) {
-        clearInterval(countdownIntervalId);
-        countdownIntervalId = null;
-    }
+    clearInterval(countdownIntervalId);
+    countdownIntervalId = null;
     countdownIntervalId = setInterval(function () {
+        // var displayedTime = $('#time-remaining');
         var now = new Date();
         remainingTime = (target - now) / 1000;
         // console.log("Time Remaining:", remainingTime);
         if (remainingTime < 0) {
             remainingTime = -1;
-            displayedTime.classList.remove('warning');
-            displayedTime.innerHTML = "Time's up!!";
+            $('#time-remaining').removeClass('warning');
+            $('#time-remaining').html("Time's up!!");
             clearInterval(countdownIntervalId);
         } else if (!$('#time-remaining').hasClass('warning') && remainingTime < FIVE_MINUTES_IN_S) {
             $('#time-remaining').addClass('warning');
@@ -620,7 +623,7 @@ function countdown(seconds) {
             var hours = ~~((remainingTime / 3600));
             var minutes = ~~((remainingTime / 60) % 60);
             var seconds = ~~(remainingTime % 60);
-            displayedTime.innerHTML = format(hours) + ":" + format(minutes) + ":" + format(seconds);
+            $('#time-remaining').html(format(hours) + ":" + format(minutes) + ":" + format(seconds));
         }
     }, update);
 }
@@ -635,16 +638,14 @@ function format(num) {
 var overtimeId, timeOver, hoursOver, minutesOver, secondsOver;
 
 function overtime(savedTimeOver) {
+    localOvertimeStarted = true;
     clearInterval(countdownIntervalId);
     var start = new Date().getTime();
     var update = 500;
-    var displayedTime = document.getElementById('time-remaining');
-    displayedTime.classList.add('overtime');
-    if (overtimeId) {
-        clearInterval(overtimeId);
-        overtimeId = null;
-    }
+    clearInterval(overtimeId);
+    overtimeId = null;
     overtimeId = setInterval(function () {
+        $('#time-remaining').addClass('overtime');
         var now = new Date();
         timeOver = (now - start) / 1000;
         if (savedTimeOver) {
@@ -654,6 +655,6 @@ function overtime(savedTimeOver) {
         hoursOver = ~~((timeOver / 3600));
         minutesOver = ~~((timeOver / 60) % 60);
         secondsOver = ~~(timeOver % 60);
-        displayedTime.innerHTML = format(hoursOver) + ":" + format(minutesOver) + ":" + format(secondsOver);
+        $('#time-remaining').html(format(hoursOver) + ":" + format(minutesOver) + ":" + format(secondsOver));
     }, update);
 }

@@ -21,6 +21,7 @@ const color = {
 };
 const event = {
     INIT: 'init',
+    INIT_ALL: 'initAll',
     RESET: 'reset',
     SNACKBAR: 'showSnackbar',
     CLOSE_TAB: 'closeTab',
@@ -39,8 +40,8 @@ chrome.runtime.onInstalled.addListener(function () {
     chrome.runtime.onMessage.addListener(function (msg, sender) {
         var tabId = sender.tab ? sender.tab.id : null;
         // console.log("Received from", tabId, msg);
-        if (msg.from === source.PAGE && active_youtube_tabs.indexOf(tabId) < 0) {
-            active_youtube_tabs.push(tabId);
+        if (msg.from === source.PAGE && typeof (msg.event) === 'undefined') {
+            active_youtube_tabs.indexOf(tabId) < 0 ? addListeners(tabId) : null;
             var eventToYouTube = event.INIT;
             if (countdown_status === status.STARTED) {
                 eventToYouTube = event.START_COUNTDOWN;
@@ -53,7 +54,7 @@ chrome.runtime.onInstalled.addListener(function () {
                 remainingTime: remainingTime,
                 timeOver: timeOver
             });
-            addListeners(tabId);
+            // console.log("refresh?");
             chrome.storage.sync.get(['countdown_status'], function (data) {
                 setBadge(data.countdown_status);
             });
@@ -77,16 +78,34 @@ chrome.runtime.onInstalled.addListener(function () {
                 });
                 reset();
                 break;
-            case event.INIT:
+            case event.INIT_ALL:
+                // console.log("Send init to all");
                 active_youtube_tabs.forEach(function (id) {
-                    chrome.tabs.sendMessage(id, { from: source.BACKGROUND, event: event.INIT });
+                    sendInit(id);
                 });
+                break;
+            case event.INIT:
+                sendInit(tabId);
                 break;
             default:
                 break;
         }
     });
 });
+
+function sendInit(tabId) {
+    // chrome.tabs.sendMessage(tabId, {
+    //     from: source.BACKGROUND,
+    //     event: event.INIT,
+    //     remainingTime: remainingTime,
+    //     timeOver: timeOver
+    // });
+    chrome.tabs.sendMessage(tabId, {
+        from: source.BACKGROUND,
+        event: event.INIT
+    });
+    // console.log("Init sent");
+}
 
 function removeYoutubeTab(tabId) {
     var idx = active_youtube_tabs.indexOf(tabId);
@@ -102,6 +121,7 @@ function removeYoutubeTab(tabId) {
 
 function addListeners(tabId) {
     // console.log("Youtube tab opened", tabId);
+    active_youtube_tabs.push(tabId);
     chrome.tabs.onRemoved.addListener(function (id) {
         if (tabId === id) {
             removeYoutubeTab(tabId);
@@ -170,6 +190,8 @@ function countdown(seconds) {
             remainingTime = -1;
             stopCountdown(true);
             chrome.storage.sync.set({ 'blur_value': 3 });
+            clearInterval(countdownId);
+            // console.log("Clear interval:", countdownId);
             if (confirm('Oops! Looks like you ran out of time. Exit YouTube?')) {
                 active_youtube_tabs.forEach(function (id) {
                     // Close all YouTube tabs
