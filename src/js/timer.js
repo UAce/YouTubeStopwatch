@@ -82,6 +82,16 @@ resetButton.onclick = function () {
     displayedTime.innerHTML = "Timer has not been set";
   });
 };
+$('#reset').hide();
+document.addEventListener('keydown', function (event) {
+  if (event.defaultPrevented) {
+    return;
+  }
+  var key = event.key || event.keyCode;
+  if (event.shiftKey && (key === "R" || key === "KeyR" || key === 82)) {
+    $('#reset').is(":hidden") ? $('#reset').show() : $('#reset').hide();
+  }
+});
 
 // Show last article
 let showArticleButton = document.getElementById('showLastArticle');

@@ -48,6 +48,11 @@ header {
     color: #F50F0F;
 }
 
+.settings-container {
+    padding-bottom: 1rem;
+    padding-left: 0.5rem;
+}
+
 #back {
     cursor: pointer;
     background-color: transparent;
@@ -148,7 +153,7 @@ input:checked+.slider:before {
 }
 
 #root {
-    width: 300px;
+    width: 400px;
 }
 
 #popup-home {
@@ -162,6 +167,10 @@ input:checked+.slider:before {
 
 #settings-title {
     display: inline-block;
+}
+
+button:focus {
+    outline: 0;
 }
 
 #action_buttons button {
