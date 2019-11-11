@@ -19,7 +19,11 @@ const event = {
   START_OVERTIME: 'startOvertime'
 };
 
-background = chrome.extension.getBackgroundPage(); // instance of background script
+$(function () {
+  $('#popup-settings').hide();
+});
+
+let background = chrome.extension.getBackgroundPage(); // instance of background script
 
 // Variables
 var hours, minutes, seconds, remainingTime;
@@ -54,8 +58,10 @@ var intervalId = setInterval(function () {
     hoursOver = background.hoursOver;
     minutesOver = background.minutesOver;
     secondsOver = background.secondsOver;
-
-    displayedTime.innerHTML = 'Overtime: ' + format(hoursOver) + ":" + format(minutesOver) + ":" + format(secondsOver);
+    displayedTime.innerHTML = 'Overtime';
+    if (typeof (hoursOver) !== 'undefined' && typeof (minutesOver) !== 'undefined' && typeof (secondsOver) !== 'undefined') {
+      displayedTime.innerHTML += ': ' + format(hoursOver) + ":" + format(minutesOver) + ":" + format(secondsOver);
+    }
   }
 }, 500);
 
@@ -83,3 +89,48 @@ let showArticleButton = document.getElementById('showLastArticle');
 showArticleButton.onclick = function () {
   chrome.runtime.sendMessage({ from: source.POPUP, event: event.SHOW_ARTICLE });
 };
+
+
+// Settings
+function initSettings() {
+  chrome.storage.sync.get(['soundOn'], function (data) {
+    $("#soundOn").prop('checked', data.soundOn);
+  });
+}
+
+
+let showSettingsButton = document.getElementById('settings');
+
+showSettingsButton.onclick = function () {
+  $('#popup-home').hide();
+  initSettings();
+  $('#popup-settings').show();
+}
+
+let backButton = document.getElementById('back');
+
+backButton.onclick = function () {
+  $('#popup-home').show();
+  $('#popup-settings').hide();
+}
+
+let saveButton = document.getElementById('save_changes');
+saveButton.onclick = function () {
+  chrome.storage.sync.set({
+    soundOn: $('#soundOn').prop('checked')
+  }, function () {
+    var snackbar = document.getElementById("saved_snackbar");
+    snackbar.className = "show";
+    saveButton.disabled = true;
+    setTimeout(function () {
+      snackbar.className = snackbar.className.replace("show", "");
+      saveButton.disabled = false;
+    }, 2000);
+  });
+}
+
+let restoreDefaultButton = document.getElementById('restore_default');
+restoreDefaultButton.onclick = function () {
+  // Default values: soundOn = true
+  $("#soundOn").prop('checked', true);
+}

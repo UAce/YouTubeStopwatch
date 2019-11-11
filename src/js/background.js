@@ -37,6 +37,15 @@ var countdown_status, overtime_status;
 // Sound from https://notificationsounds.com/
 var timesUpSound = new Audio(chrome.runtime.getURL("audio/munchausen.mp3"));
 timesUpSound.loop = false;
+var soundOn;
+chrome.storage.sync.get(['soundOn'], function (data) {
+    soundOn = data.soundOn || true;
+    chrome.storage.onChanged.addListener(function (changes, area) {
+        if (area == "sync" && "soundOn" in changes) {
+            soundOn = changes.soundOn.newValue;
+        }
+    });
+});
 
 chrome.runtime.onInstalled.addListener(function () {
     reset(); // make sure to reset if reload extension
@@ -57,7 +66,6 @@ chrome.runtime.onInstalled.addListener(function () {
                 remainingTime: remainingTime,
                 timeOver: timeOver
             });
-            // console.log("refresh?");
             chrome.storage.sync.get(['countdown_status'], function (data) {
                 setBadge(data.countdown_status);
             });
@@ -82,7 +90,6 @@ chrome.runtime.onInstalled.addListener(function () {
                 reset();
                 break;
             case event.INIT_ALL:
-                // console.log("Send init to all");
                 active_youtube_tabs.forEach(function (id) {
                     sendInit(id);
                 });
@@ -97,17 +104,10 @@ chrome.runtime.onInstalled.addListener(function () {
 });
 
 function sendInit(tabId) {
-    // chrome.tabs.sendMessage(tabId, {
-    //     from: source.BACKGROUND,
-    //     event: event.INIT,
-    //     remainingTime: remainingTime,
-    //     timeOver: timeOver
-    // });
     chrome.tabs.sendMessage(tabId, {
         from: source.BACKGROUND,
         event: event.INIT
     });
-    // console.log("Init sent");
 }
 
 function removeYoutubeTab(tabId) {
@@ -190,11 +190,11 @@ function countdown(seconds) {
         remainingTime = (target - now) / 1000;
         // console.log("Time Remaining:", remainingTime);
         if (remainingTime < 0) {
-            timesUpSound.play();
+            clearInterval(countdownId);
+            soundOn ? timesUpSound.play() : null;
             remainingTime = -1;
             stopCountdown(true);
             chrome.storage.sync.set({ 'blur_value': 3 });
-            clearInterval(countdownId);
             if (confirm('Oops! Looks like you ran out of time. Exit YouTube?')) {
                 active_youtube_tabs.forEach(function (id) {
                     // Close all YouTube tabs

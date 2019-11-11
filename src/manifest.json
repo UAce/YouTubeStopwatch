@@ -24,7 +24,8 @@
     ],
     "web_accessible_resources": [
         "img/hourglass.png",
-        "audio/time_is_now.mp3"
+        "audio/time_is_now.mp3",
+        "audio/munchausen.mp3"
     ],
     "permissions": [
         "storage",
@@ -42,6 +43,5 @@
     "icons": {
         "128": "img/extension-icon.png"
     },
-    "options_page": "options.html",
     "manifest_version": 2
 }

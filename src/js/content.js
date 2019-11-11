@@ -44,22 +44,26 @@ var isPresetAdded = false;
 var localCountdownStarted = false;
 var localOvertimeStarted = false;
 var isPageReady = false;
-var pageReadyIntervalId;
+var soundOn;
 // Sound from https://notificationsounds.com/
 var snackSound = new Audio(chrome.runtime.getURL("audio/time_is_now.mp3"));
 snackSound.loop = false;
-
-pageReadyIntervalId = setInterval(function () {
+// Set variables from chrome storage
+chrome.storage.sync.get(['soundOn'], function (data) {
+    soundOn = data.soundOn || true;
+});
+var pageReadyIntervalId = setInterval(function () {
     injectComponent();
     if (isPageReady) {
         clearInterval(pageReadyIntervalId);
     }
 }, 1000);
 
-// Send message to background.js to get tab Id
+
+// FIRST: Send message to background.js to subscribe active YouTube page
 chrome.runtime.sendMessage({ from: source.PAGE });
 
-// Get current tab id from background and add listeners to detect Tabs closed or Windows closed
+// SECOND: Add listener to events from background.js
 chrome.runtime.onMessage.addListener(function (msg) {
     // console.log("Content script received", msg);
     if (msg.from === source.BACKGROUND) {
@@ -86,17 +90,6 @@ chrome.runtime.onMessage.addListener(function (msg) {
         }
     }
 });
-
-function injectComponent() {
-    try {
-        injectSnackbar();
-        injectTimerIcon();
-        isPageReady = true;
-    }
-    catch (err) {
-        console.error(err);
-    }
-}
 
 function init(activeRemainingTime, activeTimeOver) {
     chrome.storage.sync.get(['countdown_status', 'remainingTime', 'overtime_status', 'timeOver'], function (data) {
@@ -133,6 +126,17 @@ function reset() {
     $('#blurStyle').remove();
     $('#time-remaining').removeClass('overtime');
     chrome.runtime.sendMessage({ from: source.PAGE, event: event.INIT });
+}
+
+function injectComponent() {
+    try {
+        injectSnackbar();
+        injectTimerIcon();
+        isPageReady = true;
+    }
+    catch (err) {
+        console.error(err);
+    }
 }
 
 
@@ -504,7 +508,7 @@ function injectSnackbar() {
 }
 
 function showSnackbar() {
-    snackSound.play();
+    soundOn ? snackSound.play() : null;
     var snackbar = document.getElementById("snackbar");
     snackbar.className = "show";
 

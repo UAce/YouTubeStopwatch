@@ -1,0 +1,164 @@
+body {
+    width: 100%;
+    margin: 0;
+    background: rgb(243, 243, 243);
+}
+
+header {
+    text-align: left;
+    padding: 1rem;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    position: relative;
+    background-color: rgb(48, 48, 48);
+    color: white;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.popup-title::before {
+    background-image: url(../img/extension-icon.png);
+    background-size: 25px 25px;
+    background-repeat: no-repeat;
+    background-position: center;
+    width: 25px;
+    height: 25px;
+    content: "";
+    padding: 1rem 1rem;
+}
+
+#settings {
+    position: absolute;
+    right: 8px;
+    top: 10%;
+    padding: 10px 10px;
+    border: none;
+    cursor: pointer;
+    background-color: transparent;
+    color: rgb(228, 228, 228);
+    transition: color 0.2s ease;
+}
+
+#settings:focus {
+    outline: 0;
+}
+
+#settings:hover {
+    color: #F50F0F;
+}
+
+#back {
+    cursor: pointer;
+    background-color: transparent;
+    border: none;
+    padding-left: 0;
+    transition: color 0.2s ease;
+}
+
+#back:focus {
+    outline: 0;
+}
+
+#back:hover {
+    color: #F50F0F;
+}
+
+#root {
+    width: 300px;
+}
+
+#popup-home {
+    width: 100%;
+}
+
+#popup-settings {
+    width: 100%;
+    padding: 0.25rem 0.5rem 1rem;
+}
+
+#settings-title {
+    display: inline-block;
+}
+
+#action_buttons button {
+    background-color: white;
+    padding: 5px;
+    border: 1px solid darkgrey;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#action_buttons button:hover {
+    background-color: rgb(216, 216, 216);
+}
+
+#action_buttons button:disabled {
+    cursor: not-allowed;
+    background-color: rgb(216, 216, 216);
+}
+
+#saved_snackbar {
+    visibility: hidden;
+    margin-left: -125px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 8px;
+    padding: 10px;
+    position: fixed;
+    z-index: 1;
+    left: 60%;
+    bottom: 10px;
+}
+
+#saved_snackbar.show {
+    visibility: visible;
+    -webkit-animation: fadein 0.5s, fadeout 0.5s 1.5s;
+    animation: fadein 0.5s, fadeout 0.5s 1.5s;
+}
+
+/* Animations to fade the snackbar in and out */
+
+@-webkit-keyframes fadein {
+    from {
+        bottom: 0;
+        opacity: 0;
+    }
+    to {
+        bottom: 10px;
+        opacity: 1;
+    }
+}
+
+@keyframes fadein {
+    from {
+        bottom: 0;
+        opacity: 0;
+    }
+    to {
+        bottom: 10px;
+        opacity: 1;
+    }
+}
+
+@-webkit-keyframes fadeout {
+    from {
+        bottom: 10px;
+        opacity: 1;
+    }
+    to {
+        bottom: 0;
+        opacity: 0;
+    }
+}
+
+@keyframes fadeout {
+    from {
+        bottom: 10px;
+        opacity: 1;
+    }
+    to {
+        bottom: 0;
+        opacity: 0;
+    }
+}

@@ -3,15 +3,48 @@
 
 <head>
     <meta charset="UTF-8">
-    <title></title>
+    <title>YouTubeStopwatch</title>
+    <link href="css/popup.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <script src="js/jquery-3.4.1.min.js"></script>
 </head>
 
 <body>
-    <button id="reset" style="background-color: rgb(255, 56, 96);border-radius: 2px;border: none;color: white;float: right;margin: 4px;padding: 4px;">Reset</button>
-    <button id="showLastArticle" style="background-color: rgb(96, 96, 255);border-radius: 2px;border: none;color: white;float: leftt;margin: 4px;padding: 4px;">
-        Show last article</button>
-    <img src="img/mock_graph.png" style="height:300px;width:300px;">
-    <div id="displayedTime" style="text-align: center;font-size: 20px;font-weight: bold;"></div>
+    <header>
+        <div class="popup-title">YouTubeStopwatch</div>
+        <button id="settings"><i class="fa fa-cog" style="font-size: 20px;"></i></button>
+    </header>
+    <div id="root">
+        <div id="popup-home">
+            <button id="reset" style="background-color: rgb(255, 56, 96);border-radius: 2px;border: none;color: white;float: right;margin: 4px;padding: 4px;">Reset</button>
+            <button id="showLastArticle" style="background-color: rgb(96, 96, 255);border-radius: 2px;border: none;color: white;float: leftt;margin: 4px;padding: 4px;">
+                Show last article</button>
+            <img src="img/mock_graph.png" style="height:300px;width:300px;">
+            <div id="displayedTime" style="text-align: center;font-size: 20px;font-weight: bold;"></div>
+        </div>
+        <div id="popup-settings">
+            <button id="back"><i class="fa fa-chevron-left" style="font-size: 18px;"></i></button>
+            <h2 id="settings-title">Settings</h2>
+
+            <div class="settings-container">
+                <h3>Notifications</h3>
+                <label>
+                    <input type="checkbox" id="soundOn">
+                    Sound
+                </label>
+            </div>
+
+            <div class="settings-container">
+                <h3>Preset Times</h3>
+            </div>
+
+            <div id="action_buttons">
+                <button id="save_changes">Save changes</button>
+                <button id="restore_default">Restore default</button>
+            </div>
+            <div id="saved_snackbar">Your changes have been saved!</div>
+        </div>
+    </div>
 </body>
 <script src="js/timer.js">
 </script>
