@@ -173,11 +173,11 @@ function injectTimeModal() {
     }
 
     .ui-widget-content.success-dialog {
-        background: #fae8e9;
-        border: 1px solid #982122;
+        background: rgb(243, 243, 243);
+        border: 0;
         color: #222222;
         font-weight: bold;
-        border-radius: 5px;
+        border-radius: 8px;
     }
 
     .ui-dialog.success-dialog {
@@ -198,13 +198,14 @@ function injectTimeModal() {
     }
 
     .ui-dialog.success-dialog .ui-widget-header {
-        background: #c4302b;
+        box-shadow: 0 2px 16px rgba(0, 0, 0, 0.2);
+        background-color: rgb(48, 48, 48);
         border: 0;
         color: #fff;
         font-weight: bold;
         text-align: center;
-        border-top-left-radius: 3px;
-        border-top-right-radius: 3px;
+        border-top-left-radius: 6px;
+        border-top-right-radius: 6px;
     }
 
     .ui-dialog.success-dialog .ui-dialog-titlebar {
@@ -227,41 +228,46 @@ function injectTimeModal() {
         padding: 0 1.5rem;
     }
     .okButton {
-        background-color: rgb(128,128,128) !important;
+        background-color: rgb(48, 48, 48) !important;
         border-radius: 4px;
         border: none;
         color: white;
         font-weight: bold;
         margin: 4px;
         padding: 4px 1.5rem;
-        opacity: 0.4;
+        opacity: 0.2;
         transition: 0.5s;
         cursor: not-allowed;
         display: block;
         margin: 1rem auto 0;
     }
-    .okButton.valid {
-        background-color: rgb(96, 96, 255) !important;
+    .okButton.valid:hover {
         opacity: 1;
+    }
+    .okButton.valid {
+        opacity: 0.7;
         cursor: pointer;
     }
+ 
     .preset {
         text-align: center;
         margin: 3px;
         background: transparent;
-        border: 2px solid rgb(255, 56, 96);
+        border: 2px solid #F50F0F;
         border-radius: 5px;
         padding: 5px;
         color: black;
-        transition: 0.5s
+        transition: all 0.2s ease;
     }
     .preset:hover {
-        background-color: rgb(255, 56, 96);
+        background-color: #F50F0F;
         color: white;
         cursor: pointer;
     }
     .preset:focus {
           outline: 0;
+          background-color: #F50F0F;
+          color: white;
     }
     .modal_input {
         font-family: var(--paper-font-common-base_-_font-family);
@@ -284,7 +290,7 @@ function injectTimeModal() {
     }`;
 
     // Modal form
-    var modalContent = '<div id="timeModal" title="Estimated Time on YouTube">' + '<form id="timeModalForm" method="post">' + '<div style="float:left;padding-left:1rem;"><label class="modal_input">Hours: </label>' + '<input id="estimated_hours" name="estimated_hours" type="number"></div>' + '<div style="float:left;padding-left:1rem;"><label class="modal_input">Minutes: </label>' + '<input id="estimated_minutes" name="estimated_minutes" type="number"></div>' + '<div style="padding-top:1rem;clear:both;text-align:center;display: none;" id="errorMessages"></div>' + '</form>' + '</div>';
+    var modalContent = '<div id="timeModal">' + '<form id="timeModalForm" method="post">' + '<div style="float:left;padding-left:2rem;margin-left: 12%;"><label class="modal_input">Hours: </label>' + '<input id="estimated_hours" name="estimated_hours" type="number"></div>' + '<div style="float:left;padding-left:2rem;"><label class="modal_input">Minutes: </label>' + '<input id="estimated_minutes" name="estimated_minutes" type="number"></div>' + '<div style="padding-top:1rem;clear:both;text-align:center;display: none;" id="errorMessages"></div>' + '</form>' + '</div>';
     var modalDiv = document.createElement('div');
     modalDiv.id = "modal-container";
     modalDiv.innerHTML = modalContent.trim();
@@ -369,17 +375,27 @@ function showTimeModal() {
                 modalButtons.push(newPreset);
             }
             modalButtons.push(OkButton);
+            $.widget("ui.dialog", $.extend({}, $.ui.dialog.prototype, {
+                _title: function (title) {
+                    if (!this.options.title) {
+                        title.html("&#160;");
+                    } else {
+                        title.html(this.options.title);
+                    }
+                }
+            }));
             $("#timeModal").dialog({
                 height: "auto",
                 minHeight: 185,
                 maxHeight: 350,
-                width: 200,
+                width: 300,
                 modal: true,
                 resizable: true,
                 dialogClass: 'no-close success-dialog',
                 autoOpen: true,
                 draggable: false,
-                buttons: modalButtons
+                buttons: modalButtons,
+                title: 'Plan and control your time on Youtube<br>Enter estimated time'
             });
         });
         $('#timeModalForm').validate({
