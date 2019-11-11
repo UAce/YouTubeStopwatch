@@ -34,6 +34,9 @@ const event = {
 var active_youtube_tabs = [];
 var FIVE_MINUTES_IN_S = 300;
 var countdown_status, overtime_status;
+// Sound from https://notificationsounds.com/
+var timesUpSound = new Audio(chrome.runtime.getURL("audio/munchausen.mp3"));
+timesUpSound.loop = false;
 
 chrome.runtime.onInstalled.addListener(function () {
     reset(); // make sure to reset if reload extension
@@ -187,11 +190,11 @@ function countdown(seconds) {
         remainingTime = (target - now) / 1000;
         // console.log("Time Remaining:", remainingTime);
         if (remainingTime < 0) {
+            timesUpSound.play();
             remainingTime = -1;
             stopCountdown(true);
             chrome.storage.sync.set({ 'blur_value': 3 });
             clearInterval(countdownId);
-            // console.log("Clear interval:", countdownId);
             if (confirm('Oops! Looks like you ran out of time. Exit YouTube?')) {
                 active_youtube_tabs.forEach(function (id) {
                     // Close all YouTube tabs

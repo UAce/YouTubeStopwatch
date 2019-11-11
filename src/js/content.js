@@ -45,6 +45,9 @@ var localCountdownStarted = false;
 var localOvertimeStarted = false;
 var isPageReady = false;
 var pageReadyIntervalId;
+// Sound from https://notificationsounds.com/
+var snackSound = new Audio(chrome.runtime.getURL("audio/time_is_now.mp3"));
+snackSound.loop = false;
 
 pageReadyIntervalId = setInterval(function () {
     injectComponent();
@@ -501,6 +504,7 @@ function injectSnackbar() {
 }
 
 function showSnackbar() {
+    snackSound.play();
     var snackbar = document.getElementById("snackbar");
     snackbar.className = "show";
 
@@ -513,11 +517,6 @@ function showSnackbar() {
         snackbar.className = snackbar.className.replace("show", "");
         clearTimeout(autoHide);
     };
-
-    // Sound from https://notificationsounds.com/
-    var snackSound = new Audio(chrome.runtime.getURL("audio/time_is_now.mp3"));
-    snackSound.loop = false;
-    snackSound.play();
 }
 
 /*
