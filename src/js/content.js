@@ -451,7 +451,7 @@ function injectSnackbar() {
         min-width: 250px;
         margin-left: -125px;
         background-color: ${color.RED};
-        color: #333;
+        color: #fff;
         font-weight: bold;
         text-align: center;
         border-radius: 2px;
@@ -475,7 +475,6 @@ function injectSnackbar() {
     #snackbar:hover {
         box-shadow: 0 0 5px ${color.RED};
         background-color: #333;
-        color: #fff;
     }
       
     @-webkit-keyframes fadein {
@@ -514,6 +513,11 @@ function showSnackbar() {
         snackbar.className = snackbar.className.replace("show", "");
         clearTimeout(autoHide);
     };
+
+    // Sound from https://notificationsounds.com/
+    var snackSound = new Audio(chrome.runtime.getURL("audio/time_is_now.mp3"));
+    snackSound.loop = false;
+    snackSound.play();
 }
 
 /*
