@@ -195,7 +195,7 @@ function countdown(seconds) {
             remainingTime = -1;
             stopCountdown(true);
             chrome.storage.sync.set({ 'blur_value': 3 });
-            if (confirm('Oops! Looks like you ran out of time. Exit YouTube?')) {
+            if (confirm('Oops! Looks like you ran out of time. Exit YouTube?\n\nWARNING: If you click on “cancel” you will be subject to video visual deterioration on YouTube and awareness article pop-ups.')) {
                 active_youtube_tabs.forEach(function (id) {
                     // Close all YouTube tabs
                     chrome.tabs.remove(id);

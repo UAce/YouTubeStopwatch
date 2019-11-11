@@ -171,7 +171,7 @@ function injectTimeModal() {
         font-family: var(--paper-font-common-base_-_font-family);
         font-size: 12px;
     }
-    
+
     .ui-widget-content.success-dialog {
         background: #fae8e9;
         border: 1px solid #982122;
@@ -179,7 +179,7 @@ function injectTimeModal() {
         font-weight: bold;
         border-radius: 5px;
     }
-    
+
     .ui-dialog.success-dialog {
         left: 0;
         outline: 0 none;
@@ -188,7 +188,7 @@ function injectTimeModal() {
         top: 0;
         z-index: 5001;
     }
-    
+
     .ui-dialog.success-dialog .ui-dialog-content {
         background: none repeat 0 0 transparent;
         border: 0 none;
@@ -196,7 +196,7 @@ function injectTimeModal() {
         padding: 0 !important;
         margin: 0;
     }
-    
+
     .ui-dialog.success-dialog .ui-widget-header {
         background: #c4302b;
         border: 0;
@@ -206,7 +206,7 @@ function injectTimeModal() {
         border-top-left-radius: 3px;
         border-top-right-radius: 3px;
     }
-    
+
     .ui-dialog.success-dialog .ui-dialog-titlebar {
         padding: 8px 2px;
         position: relative;
@@ -217,7 +217,7 @@ function injectTimeModal() {
     .ui-dialog-titlebar-close {
         display: none;
     }
-    
+
     .ui-dialog-buttonpane {
         clear: both;
         text-align: center;
