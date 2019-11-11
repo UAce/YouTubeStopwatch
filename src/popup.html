@@ -7,6 +7,7 @@
     <link href="css/popup.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <script src="js/jquery-3.4.1.min.js"></script>
+    <script src="js/jquery-ui.min.js"></script>
 </head>
 
 <body>
@@ -28,10 +29,20 @@
 
             <div class="settings-container">
                 <h3>Notifications</h3>
-                <label>
-                    <input type="checkbox" id="soundOn">
-                    Sound
-                </label>
+                <div class="settings-toggle-button">
+                    <label class="switch">
+                        <input type="checkbox" id="soundOn">
+                        <span class="slider round"></span>
+                    </label>
+                    <span class="label">Sound</span>
+                </div>
+                <!-- <div class="settings-toggle-button">
+                    <label class="switch">
+                        <input type="checkbox" id="something">
+                        <span class="slider round"></span>
+                    </label>
+                    <span class="label">something</span>
+                </div> -->
             </div>
 
             <div class="settings-container">

@@ -103,13 +103,13 @@ let showSettingsButton = document.getElementById('settings');
 showSettingsButton.onclick = function () {
   $('#popup-home').hide();
   initSettings();
-  $('#popup-settings').show();
+  $('#popup-settings').show('slide', { direction: 'left', easing: 'easeOutQuint' }, 200);;
 }
 
 let backButton = document.getElementById('back');
 
 backButton.onclick = function () {
-  $('#popup-home').show();
+  $('#popup-home').show('slide', { direction: 'right', easing: 'easeOutQuint' }, 200);;
   $('#popup-settings').hide();
 }
 
