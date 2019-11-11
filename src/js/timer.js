@@ -94,10 +94,9 @@ showArticleButton.onclick = function () {
 // Settings
 function initSettings() {
   chrome.storage.sync.get(['soundOn'], function (data) {
-    $("#soundOn").prop('checked', data.soundOn);
+    $("#soundOn").prop('checked', data.soundOn || true);
   });
 }
-
 
 let showSettingsButton = document.getElementById('settings');
 
