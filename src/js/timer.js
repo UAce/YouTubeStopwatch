@@ -84,7 +84,7 @@ resetButton.onclick = function () {
 };
 $('#reset').hide();
 document.addEventListener('keydown', function (event) {
-  if (event.defaultPrevented) {
+  if (event.defaultPrevented || $('#popup-settings').is(":hidden")) {
     return;
   }
   var key = event.key || event.keyCode;
@@ -113,13 +113,13 @@ let showSettingsButton = document.getElementById('settings');
 showSettingsButton.onclick = function () {
   $('#popup-home').hide();
   initSettings();
-  $('#popup-settings').show('slide', { direction: 'left', easing: 'easeOutQuint' }, 200);;
+  $('#popup-settings').show('slide', { direction: 'left', easing: 'easeOutQuint' }, 200);
 }
 
 let backButton = document.getElementById('back');
 
 backButton.onclick = function () {
-  $('#popup-home').show('slide', { direction: 'right', easing: 'easeOutQuint' }, 200);;
+  $('#popup-home').show('slide', { direction: 'right', easing: 'easeOutQuint' }, 200);
   $('#popup-settings').hide();
 }
 
