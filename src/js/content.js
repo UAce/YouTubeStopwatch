@@ -126,6 +126,7 @@ function reset() {
     clearInterval(countdownIntervalId);
     clearInterval(overtimeId);
     $('#blurStyle').remove();
+    $('#time-remaining').removeClass('warning');
     $('#time-remaining').removeClass('overtime');
     setVarsFromChromeStorage();
     chrome.runtime.sendMessage({ from: source.PAGE, event: event.INIT });

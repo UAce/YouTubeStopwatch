@@ -235,8 +235,8 @@ function countdown(seconds) {
 function startCountdown() {
     printEvent('START COUNTDOWN');
     chrome.storage.sync.get(['remainingTime'], function (data) {
-        // countdown(data.remainingTime);
-        countdown(3);
+        countdown(data.remainingTime);
+        // countdown(3);
         chrome.storage.sync.set({ 'countdown_status': status.STARTED });
         countdown_status = status.STARTED;
         setBadge(status.STARTED);
