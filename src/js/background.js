@@ -2,7 +2,9 @@
 
 // console.log('background script loaded!');
 
-// Constants
+/*
+ * CONSTANTS
+ */
 const status = {
     STARTED: 'started',
     STOPPED: 'stopped',
@@ -30,7 +32,10 @@ const event = {
     START_OVERTIME: 'startOvertime'
 };
 
-// Variables
+
+/*
+ * VARIABLES
+ */
 var active_youtube_tabs = [];
 var FIVE_MINUTES_IN_S = 300;
 var countdown_status, overtime_status;
@@ -47,6 +52,10 @@ chrome.storage.sync.get(['soundOn'], function (data) {
     });
 });
 
+
+/*
+ * MAIN - HANDLES EVENTS FROM YOUTUBE AND POPUP PAGE
+ */
 chrome.runtime.onInstalled.addListener(function () {
     reset(); // make sure to reset if reload extension
     chrome.runtime.onMessage.addListener(function (msg, sender) {
@@ -103,6 +112,7 @@ chrome.runtime.onInstalled.addListener(function () {
     });
 });
 
+// Send init event to specific tab
 function sendInit(tabId) {
     chrome.tabs.sendMessage(tabId, {
         from: source.BACKGROUND,
@@ -110,6 +120,18 @@ function sendInit(tabId) {
     });
 }
 
+// Resets countdown/overtime and blur
+function reset() {
+    chrome.storage.sync.set({ 'blur_value': 0 });
+    remainingTime = 0;
+    remainingHours = remainingMinutes = remainingSeconds = undefined;
+    timeOver = 0;
+    hoursOver = minutesOver = secondsOver = undefined;
+    stopCountdown();
+    stopOvertime();
+}
+
+// Removes specific tab from active youtube tabs
 function removeYoutubeTab(tabId) {
     var idx = active_youtube_tabs.indexOf(tabId);
     active_youtube_tabs.splice(idx, 1);
@@ -122,6 +144,7 @@ function removeYoutubeTab(tabId) {
     // console.log("Youtube tab closed", tabId, active_youtube_tabs);
 }
 
+// Subscribes tab to active youtube tabs and adds listener to url changes
 function addListeners(tabId) {
     // console.log("Youtube tab opened", tabId);
     active_youtube_tabs.push(tabId);
@@ -141,6 +164,10 @@ function addListeners(tabId) {
     });
 }
 
+
+/*
+ * EXTENSION ICON BADGE (ON, OFF, OVER)
+ */
 function setBadge(state) {
     switch (state) {
         case status.STARTED:
@@ -160,22 +187,9 @@ function setBadge(state) {
     }
 }
 
-function printEvent(ev) {
-    // console.log("________________\n\n" + ev + "\n________________\n\n");
-}
-
-function reset() {
-    chrome.storage.sync.set({ 'blur_value': 0 });
-    remainingTime = 0;
-    remainingHours = remainingMinutes = remainingSeconds = undefined;
-    timeOver = 0;
-    hoursOver = minutesOver = secondsOver = undefined;
-    stopCountdown();
-    stopOvertime();
-}
 
 /*
- * Countdown
+ * COUNTDOWN
 */
 var countdownId, remainingTime, remainingHours, remainingMinutes, remainingSeconds;
 
@@ -247,28 +261,7 @@ function stopCountdown(isOver) {
 
 
 /*
- * Show popup articles
- */
-const article_url = ["https://slate.com/technology/2018/03/youtube-is-only-just-realizing-that-it-might-be-bad-for-all-of-us.html"];
-function showArticle() {
-    var w = 800;
-    var h = 500;
-    var left = (screen.width / 2) - (w / 2);
-    var top = (screen.height / 2) - (h / 2);
-    var idx = randomIntFromInterval(0, article_url.length - 1);
-    chrome.windows.create({
-        url: article_url[idx],
-        type: "popup", height: h, width: w, 'left': left, 'top': top, focused: true
-    });
-}
-
-function randomIntFromInterval(min, max) {
-    return Math.floor(Math.random() * (max - min + 1) + min);
-}
-
-
-/*
- * Overtime
+ * OVERTIME
 */
 var overtimeId, timeOver, hoursOver, minutesOver, secondsOver;
 
@@ -312,4 +305,37 @@ function stopOvertime() {
     chrome.storage.sync.set({ 'overtime_status': status.STOPPED });
     overtime_status = status.STOPPED;
     setBadge(status.STOPPED);
+}
+
+
+/*
+ * POPUP ARTICLES
+ */
+const article_url = ["https://slate.com/technology/2018/03/youtube-is-only-just-realizing-that-it-might-be-bad-for-all-of-us.html"];
+function showArticle() {
+    var w = 800;
+    var h = 500;
+    var left = (screen.width / 2) - (w / 2);
+    var top = (screen.height / 2) - (h / 2);
+    var idx = randomIntFromInterval(0, article_url.length - 1);
+    chrome.windows.create({
+        url: article_url[idx],
+        type: "popup", height: h, width: w, 'left': left, 'top': top, focused: true
+    });
+}
+
+
+/*
+ * HELPERS
+ */
+function randomIntFromInterval(min, max) {
+    return Math.floor(Math.random() * (max - min + 1) + min);
+}
+
+
+/*
+ * DEBUGGING
+ */
+function printEvent(ev) {
+    // console.log("________________\n\n" + ev + "\n________________\n\n");
 }

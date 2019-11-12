@@ -1,6 +1,8 @@
 // console.log('Content Script loaded!');
 
-// Constants
+/*
+ * CONSTANTS
+ */
 const status = {
     STARTED: 'started',
     STOPPED: 'stopped',
@@ -37,7 +39,10 @@ const MAX_BLUR_VAL = 20;
 const MAX_HOURS = 23;
 const MAX_MINUTES = 59;
 
-// Variables
+
+/*
+ * VARIABLES
+ */
 var currentTabId;
 var blurIntervalId;
 var isPresetAdded = false;
@@ -53,13 +58,16 @@ chrome.storage.sync.get(['soundOn'], function (data) {
     soundOn = data.soundOn || true;
 });
 var pageReadyIntervalId = setInterval(function () {
-    injectComponent();
+    injectComponentOnce();
     if (isPageReady) {
         clearInterval(pageReadyIntervalId);
     }
 }, 1000);
 
 
+/*
+ * MAIN - HANDLES INTERACTION WITH BACKGROUND PAGE
+ */
 // FIRST: Send message to background.js to subscribe active YouTube page
 chrome.runtime.sendMessage({ from: source.PAGE });
 
@@ -91,33 +99,30 @@ chrome.runtime.onMessage.addListener(function (msg) {
     }
 });
 
+// Init function to decide whether to show modal, start countdown or overtime
 function init(activeRemainingTime, activeTimeOver) {
     chrome.storage.sync.get(['countdown_status', 'remainingTime', 'overtime_status', 'timeOver'], function (data) {
         var countdown_status = data.countdown_status;
         var remainingTime = activeRemainingTime || data.remainingTime;
         var overtime_status = data.overtime_status;
         var timeOver = activeTimeOver || data.timeOver;
-        // Time limit reached, apply and increase blur every 5min
-        if (countdown_status === status.OVER) {
-            // console.log("1. countdown_status:", countdown_status, ", overtime_status:", overtime_status, "timer over:", timeOver, ", over time started:", localOvertimeStarted);
+        if (countdown_status === status.OVER) {     // Time limit reached, apply and increase blur every 5min
             overtime_status === status.STOPPED ? chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_OVERTIME }) : null;
             blur();
             localOvertimeStarted ? null : overtime(timeOver);
-        } else if (countdown_status === status.STARTED && remainingTime > 0) {
-            // console.log("2. countdown_status:", countdown_status, ", remaining time:", remainingTime, ", local countdown started:", localCountdownStarted);
+        } else if (countdown_status === status.STARTED && remainingTime > 0) {      // Countdown started, remove modal and start local countdown if not already started
             removeModal();
             localCountdownStarted ? null : countdown(remainingTime);
             return;
-        } else if (countdown_status === status.STOPPED && remainingTime > 0) {
-            // console.log("3. countdown_status:", countdown_status, ", remaining time:", remainingTime);
+        } else if (countdown_status === status.STOPPED && remainingTime > 0) {      // Countdown stopped, resume countdown
             chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_COUNTDOWN });
-        } else {
-            // console.log("4. countdown_status:", countdown_status);
-            showTimeModal(); //temp solution
+        } else {        // Countdown not started yet, show modal
+            showTimeModal();
         }
     });
 }
 
+// Reset function
 function reset() {
     removeModal();
     clearInterval(blurIntervalId);
@@ -128,7 +133,8 @@ function reset() {
     chrome.runtime.sendMessage({ from: source.PAGE, event: event.INIT });
 }
 
-function injectComponent() {
+// Function that injects html components (snackbar and hourglass icon) once
+function injectComponentOnce() {
     try {
         injectSnackbar();
         injectTimerIcon();
@@ -143,6 +149,8 @@ function injectComponent() {
 /*
  * MODAL
  */
+
+// function to inject modal html component
 function injectTimeModal() {
     // Add overlay
     var body = document.body,
@@ -304,17 +312,29 @@ function injectTimeModal() {
         changeOkButtonStatus();
     });
 }
+
 function changeOkButtonStatus() {
     $('#timeModalForm').valid() ? focusOkButton() : blurOkButton(0);
 }
 function focusOkButton() {
     $('.okButton').addClass('valid').removeAttr("disabled");
 }
-
 function blurOkButton() {
     $('.okButton').removeClass('valid').attr("disabled", true).blur();
 }
 
+// Function to remove modal
+function removeModal() {
+    $("#timeModal").dialog("close");
+    $("#timeModal").dialog('destroy').remove();
+    $('#overlayModal').remove();
+    $('html, body').css({
+        overflow: 'auto',
+        height: 'auto'
+    });
+}
+
+// Function to display modal
 function showTimeModal() {
     injectTimeModal();
     $('html, body').css({
@@ -419,23 +439,14 @@ function showTimeModal() {
     });
 }
 
-function removeModal() {
-    $("#timeModal").dialog("close");
-    $("#timeModal").dialog('destroy').remove();
-    $('#overlayModal').remove();
-    $('html, body').css({
-        overflow: 'auto',
-        height: 'auto'
-    });
-}
 
 /*
- * BLUR effect
+ * BLUR EFFECT
  */
 function blur() {
     var blurStyle = document.getElementById('blurStyle');
 
-    // Prevent appending multiple times the blur element
+    // Prevents creating multiple times the blur element
     if (!blurStyle) {
         chrome.storage.sync.get(['blur_value'], function (data) {
             var val = data.blur_value;
@@ -462,7 +473,7 @@ function blur() {
 
 
 /*
- * SNACKBAR (This is a replacement for chrome.notifications until we can get it to work)
+ * SNACKBAR (This is a replacement for chrome.notifications because I couldn't get it to work)
  */
 function injectSnackbar() {
     var snackDiv = document.createElement('div');
@@ -538,6 +549,7 @@ function showSnackbar() {
         clearTimeout(autoHide);
     };
 }
+
 
 /*
  * TIMER ICON
@@ -617,7 +629,7 @@ function injectTimerIcon() {
 
 
 /*
- * Start Countdown time on YouTube page
+ * COUNTDOWN
  */
 var countdownIntervalId, remainingTime, hours, minutes, seconds;
 
@@ -630,10 +642,8 @@ function countdown(seconds) {
     clearInterval(countdownIntervalId);
     countdownIntervalId = null;
     countdownIntervalId = setInterval(function () {
-        // var displayedTime = $('#time-remaining');
         var now = new Date();
         remainingTime = (target - now) / 1000;
-        // console.log("Time Remaining:", remainingTime);
         if (remainingTime < 0) {
             remainingTime = -1;
             $('#time-remaining').removeClass('warning');
@@ -650,12 +660,9 @@ function countdown(seconds) {
     }, update);
 }
 
-function format(num) {
-    return num < 10 ? "0" + num : num;
-}
 
 /*
- * Start Overtime on YouTube page
+ * OVERTIME
 */
 var overtimeId, timeOver, hoursOver, minutesOver, secondsOver;
 
@@ -673,10 +680,17 @@ function overtime(savedTimeOver) {
         if (savedTimeOver) {
             timeOver += savedTimeOver;
         }
-        // console.log("Time Over:", timeOver);
         hoursOver = ~~((timeOver / 3600));
         minutesOver = ~~((timeOver / 60) % 60);
         secondsOver = ~~(timeOver % 60);
         $('#time-remaining').html(format(hoursOver) + ":" + format(minutesOver) + ":" + format(secondsOver));
     }, update);
+}
+
+
+/*
+ * HELPERS
+ */
+function format(num) {
+    return num < 10 ? "0" + num : num;
 }

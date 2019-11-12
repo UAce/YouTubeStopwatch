@@ -1,4 +1,6 @@
-// Constants
+/*
+ * CONSTANTS
+ */
 const status = {
   STARTED: 'started',
   STOPPED: 'stopped',
@@ -18,24 +20,21 @@ const event = {
   SHOW_ARTICLE: 'showArticle',
   START_OVERTIME: 'startOvertime'
 };
-
-$(function () {
-  $('#popup-settings').hide();
-});
-
 let background = chrome.extension.getBackgroundPage(); // instance of background script
 
-// Variables
-var hours, minutes, seconds, remainingTime;
-var timeOver, hoursOver, minutesOver, secondsOver;
-var displayedTime = document.getElementById("displayedTime");
-
-if (typeof (background.remainingHours) === 'undefined' || typeof (background.remainingMinutes) === 'undefined' || typeof (background.remainingSeconds) === 'undefined') {
-  displayedTime.innerHTML = 'Timer has not been set';
-}
 
 /*
- * Main function
+ * VARIABLES
+ */
+var hours, minutes, seconds, remainingTime;
+var timeOver, hoursOver, minutesOver, secondsOver;
+if (typeof (background.remainingHours) === 'undefined' || typeof (background.remainingMinutes) === 'undefined' || typeof (background.remainingSeconds) === 'undefined') {
+  $('#displayedTime').html('Timer has not been set');
+}
+
+
+/*
+ * COUNTDOWN/OVERTIME
  */
 var intervalId = setInterval(function () {
   background = chrome.extension.getBackgroundPage(); // instance of background script
@@ -48,41 +47,68 @@ var intervalId = setInterval(function () {
     seconds = background.remainingSeconds;
     remainingTime = Math.floor(background.remainingTime);
 
-    if (remainingTime <= 0 && displayedTime.innerHTML !== "Time's up!!") {
-      displayedTime.innerHTML = "Time's up!!";
+    if (remainingTime <= 0 && $('#displayedTime').html() !== "Time's up!!") {
+      $('#displayedTime').html("Time's up!!");
     } else if (remainingTime > 0) {
-      displayedTime.innerHTML = 'Time remaining: ' + format(hours) + ":" + format(minutes) + ":" + format(seconds);
+      $('#displayedTime').html('Time remaining: ' + format(hours) + ":" + format(minutes) + ":" + format(seconds));
     }
   } else if (countdown_status === status.OVER) {
     // Overtime
     hoursOver = background.hoursOver;
     minutesOver = background.minutesOver;
     secondsOver = background.secondsOver;
-    displayedTime.innerHTML = 'Overtime';
+    $('#displayedTime').html("Overtime");
     if (typeof (hoursOver) !== 'undefined' && typeof (minutesOver) !== 'undefined' && typeof (secondsOver) !== 'undefined') {
-      displayedTime.innerHTML += ': ' + format(hoursOver) + ":" + format(minutesOver) + ":" + format(secondsOver);
+      $('#displayedTime').append(': ' + format(hoursOver) + ":" + format(minutesOver) + ":" + format(secondsOver));
     }
   }
 }, 500);
 
 
-// Helpers
-function format(num) {
-  return num < 10 ? "0" + num : num;
+/*
+ * POPUP HOME
+ */
+$(function () {
+  $('#popup-settings').hide();
+});
+
+// Show settings
+$('#settings').click(function () {
+  $('#popup-home').hide();
+  initSettings();
+  $('#popup-settings').show('slide', { direction: 'left', easing: 'easeOutQuint' }, 200);
+});
+
+// Show last article
+$('#showLastArticle').click(function () {
+  chrome.runtime.sendMessage({ from: source.POPUP, event: event.SHOW_ARTICLE });
+});
+
+
+/*
+ * SETTINGS
+ */
+function initSettings() {
+  chrome.storage.sync.get(['soundOn'], function (data) {
+    $("#soundOn").prop('checked', data.soundOn || true);
+  });
 }
 
+// Return to home
+$('#back').click(function () {
+  $('#popup-home').show('slide', { direction: 'right', easing: 'easeOutQuint' }, 200);
+  $('#popup-settings').hide();
+});
 
 // Reset
-let resetButton = document.getElementById('reset');
-
-resetButton.onclick = function () {
+$('#reset').click(function () {
   chrome.storage.sync.clear(function () {
     chrome.runtime.sendMessage({ from: source.POPUP, event: event.RESET });
-    var displayedTime = document.getElementById("displayedTime");
-    displayedTime.innerHTML = "Timer has not been set";
+    $('#displayedTime').html('Timer has not been set');
   });
-};
+});
 $('#reset').hide();
+// Show/Hide reset button on 'Shift + R'
 document.addEventListener('keydown', function (event) {
   if (event.defaultPrevented || $('#popup-settings').is(":hidden")) {
     return;
@@ -93,38 +119,8 @@ document.addEventListener('keydown', function (event) {
   }
 });
 
-// Show last article
-let showArticleButton = document.getElementById('showLastArticle');
-
-showArticleButton.onclick = function () {
-  chrome.runtime.sendMessage({ from: source.POPUP, event: event.SHOW_ARTICLE });
-};
-
-
-// Settings
-function initSettings() {
-  chrome.storage.sync.get(['soundOn'], function (data) {
-    $("#soundOn").prop('checked', data.soundOn || true);
-  });
-}
-
-let showSettingsButton = document.getElementById('settings');
-
-showSettingsButton.onclick = function () {
-  $('#popup-home').hide();
-  initSettings();
-  $('#popup-settings').show('slide', { direction: 'left', easing: 'easeOutQuint' }, 200);
-}
-
-let backButton = document.getElementById('back');
-
-backButton.onclick = function () {
-  $('#popup-home').show('slide', { direction: 'right', easing: 'easeOutQuint' }, 200);
-  $('#popup-settings').hide();
-}
-
-let saveButton = document.getElementById('save_changes');
-saveButton.onclick = function () {
+// Save setting changes
+$('#save_changes').click(function () {
   chrome.storage.sync.set({
     soundOn: $('#soundOn').prop('checked')
   }, function () {
@@ -136,10 +132,32 @@ saveButton.onclick = function () {
       saveButton.disabled = false;
     }, 2000);
   });
-}
+});
 
-let restoreDefaultButton = document.getElementById('restore_default');
-restoreDefaultButton.onclick = function () {
+// Restore default settings
+$('#restore_default').click(function () {
   // Default values: soundOn = true
   $("#soundOn").prop('checked', true);
+});
+
+// Validate preset options
+function validatePresetTime(evt) {
+  var presetType = $('#preset_type');
+  var presetInput = $('#preset_input');
+  var charCode = (evt.which) ? evt.which : evt.keyCode;
+  console.log(charCode, presetType, presetInput);
+  console.log(evt);
+  if (charCode != 46 && charCode > 31
+    && (charCode < 48 || charCode > 57))
+    return false;
+
+  return true;
+}
+
+
+/*
+ * HELPERS
+ */
+function format(num) {
+  return num < 10 ? "0" + num : num;
 }
