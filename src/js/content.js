@@ -29,8 +29,8 @@ const color = {
     BLUE: '#1c2efc',
     GREEN: '#4bb543'
 }
-const preset_times = { "30min": 30, "1h": 60, "2h": 120, "12h": 720 };
-
+const default_presets = { "30min": 30, "1h": 60, "2h": 120, "12h": 720 };
+const default_soundOn = true;
 const ONE_MINUTE_IN_MS = 60000;
 const ONE_MINUTE_IN_S = 60;
 const FIVE_MINUTES_IN_S = 300;
@@ -50,20 +50,17 @@ var localCountdownStarted = false;
 var localOvertimeStarted = false;
 var isPageReady = false;
 var soundOn;
+var preset_times;
 // Sound from https://notificationsounds.com/
 var snackSound = new Audio(chrome.runtime.getURL("audio/time_is_now.mp3"));
 snackSound.loop = false;
-// Set variables from chrome storage
-chrome.storage.sync.get(['soundOn'], function (data) {
-    soundOn = data.soundOn || true;
-});
 var pageReadyIntervalId = setInterval(function () {
     injectComponentOnce();
     if (isPageReady) {
         clearInterval(pageReadyIntervalId);
     }
 }, 1000);
-
+setVarsFromChromeStorage();
 
 /*
  * MAIN - HANDLES INTERACTION WITH BACKGROUND PAGE
@@ -130,7 +127,26 @@ function reset() {
     clearInterval(overtimeId);
     $('#blurStyle').remove();
     $('#time-remaining').removeClass('overtime');
+    setVarsFromChromeStorage();
     chrome.runtime.sendMessage({ from: source.PAGE, event: event.INIT });
+}
+
+// Set variables from chrome storage
+function setVarsFromChromeStorage() {
+    chrome.storage.sync.get(['soundOn', 'presetTimes'], function (data) {
+        soundOn = data.soundOn || default_soundOn;
+        preset_times = data.presetTimes || jQuery.extend(true, {}, default_presets);
+        chrome.storage.onChanged.addListener(function (changes, area) {
+            if (area == "sync") {
+                if ("soundOn" in changes) {
+                    soundOn = changes.soundOn.newValue;
+                }
+                if ("presetTimes" in changes) {
+                    preset_times = changes.presetTimes.newValue;
+                }
+            }
+        });
+    });
 }
 
 // Function that injects html components (snackbar and hourglass icon) once

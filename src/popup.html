@@ -17,13 +17,13 @@
     </header>
     <div id="root">
         <div id="popup-home">
-            <button id="showLastArticle" style="background-color: rgb(96, 96, 255);border-radius: 2px;border: none;color: white;float: leftt;margin: 4px;padding: 4px;">
+            <button id="showLastArticle">
                 Show last article</button>
             <img src="img/stats.png" style="height:300px;width:400px;">
-            <div id="displayedTime" style="text-align: center;font-size: 20px;font-weight: bold;padding-bottom:0.5rem;"></div>
+            <div id="displayedTime"></div>
         </div>
-        <div id="popup-settings">
-            <button id="reset" style="background-color: rgb(255, 56, 96);border-radius: 2px;border: none;color: white;position: absolute;right: 5px;margin: 4px;padding: 4px;">Reset</button>
+        <div id="popup-settings" class="toShow">
+            <button id="reset" class="toShow">Reset</button>
             <button id="back"><i class="fa fa-chevron-left" style="font-size: 18px;"></i></button>
             <h2 id="settings-title">Settings</h2>
 
@@ -46,12 +46,19 @@
             </div>
 
             <div class="settings-container">
-                <!-- <h3>Preset Times</h3> -->
+                <h3>Preset Times</h3>
+                <input id="preset_hours_input" type="number" class="preset_input" min="0" max="23">
+                <label class="preset_label">Hours</label>
+                <input id="preset_minutes_input" type="number" class="preset_input" min="0" max="59">
+                <label class="preset_label">Minutes</label>
+                <button id="add_preset" class="action_buttons" disabled>Add</button>
+                <div id="empty_list" class="toShow">You do not have any preset times</div>
+                <ul id="preset_list"></ul>
             </div>
 
-            <div id="action_buttons">
-                <button id="save_changes">Save changes</button>
-                <button id="restore_default">Restore default</button>
+            <div>
+                <button id="save_changes" class="action_buttons">Save changes</button>
+                <button id="restore_default" class="action_buttons">Restore default</button>
             </div>
             <div id="saved_snackbar">Your changes have been saved!</div>
         </div>

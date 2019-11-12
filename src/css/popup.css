@@ -4,6 +4,10 @@ body {
     background: rgb(243, 243, 243);
 }
 
+/*
+ * POPUP HOME
+ */
+
 header {
     text-align: left;
     padding: 1rem;
@@ -26,6 +30,46 @@ header {
     height: 25px;
     content: "";
     padding: 1rem 1rem;
+}
+
+#root {
+    width: 400px;
+}
+
+#popup-home {
+    width: 100%;
+}
+
+.light {
+    color: white;
+}
+
+.dark {
+    color: black;
+}
+
+.toShow {
+    display: none;
+}
+
+#displayedTime {
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+    padding-bottom: 0.5rem;
+}
+
+/*
+ * POPUP SETTINGS
+ */
+
+#popup-settings {
+    width: 100%;
+    padding: 0rem 0.5rem 1rem;
+}
+
+#settings-title {
+    display: inline-block;
 }
 
 #settings {
@@ -69,8 +113,29 @@ header {
     color: #F50F0F;
 }
 
+#reset {
+    background-color: rgb(255, 56, 96);
+    border-radius: 2px;
+    border: none;
+    color: white;
+    position: absolute;
+    right: 5px;
+    margin: 4px;
+    padding: 4px;
+}
+
 #reset:hover {
     cursor: pointer;
+}
+
+#showLastArticle {
+    background-color: rgb(96, 96, 255);
+    border-radius: 2px;
+    border: none;
+    color: white;
+    float: leftt;
+    margin: 4px;
+    padding: 4px;
 }
 
 #showLastArticle:hover {
@@ -81,7 +146,18 @@ input[type="checkbox"]:hover {
     cursor: pointer;
 }
 
-/* Custom Sliders */
+input:focus {
+    outline: 0;
+}
+
+input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/*
+ * SETTINGS CUSTOM SWITCH TOGGLE
+*/
 
 .settings-toggle-button {
     padding: 4px 0;
@@ -130,12 +206,6 @@ input[type="checkbox"]:hover {
 
 input:checked+.slider {
     background-color: #F50F0F;
-    /*#2196F3*/
-}
-
-input:focus+.slider {
-    /* box-shadow: 0 0 1px #F50F0F; */
-    /*#2196F3*/
 }
 
 input:checked+.slider:before {
@@ -152,28 +222,73 @@ input:checked+.slider:before {
     border-radius: 50%;
 }
 
-#root {
-    width: 400px;
+/*
+ * PRESETS
+ */
+
+.preset_input {
+    border-radius: 4px;
+    width: 1.25rem;
+    padding: 0 5px;
 }
 
-#popup-home {
-    width: 100%;
+.preset_label {
+    padding-right: 0.5rem;
+    font-weight: 500;
 }
 
-#popup-settings {
-    width: 100%;
-    padding: 0rem 0.5rem 1rem;
+#preset_list {
+    list-style-type: none;
+    padding-left: 0;
+    margin-right: 1.5rem;
+    height: 30px;
+    max-height: auto;
 }
 
-#settings-title {
+#preset_list li {
+    display: none;
+    background-color: white;
+    padding: 5px;
+    border: 2px solid #F50F0F;
+    border-radius: 10px;
+    margin-right: 0.25rem;
+}
+
+#preset_list li.show {
     display: inline-block;
+    margin-bottom: 5px;
 }
+
+.delete-times-circle {
+    background-color: transparent;
+    color: #F50F0F;
+    border: 0;
+    padding-left: 5px;
+    padding-right: 1px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.delete-times-circle:hover {
+    color: black;
+}
+
+#empty_list {
+    color: red;
+    font-weight: 500;
+    height: 25px;
+    padding-top: 1rem;
+}
+
+/*
+ * SETTINGS ACTION BUTTONS
+ */
 
 button:focus {
     outline: 0;
 }
 
-#action_buttons button {
+button.action_buttons {
     background-color: white;
     padding: 5px;
     border: 1px solid darkgrey;
@@ -181,14 +296,18 @@ button:focus {
     cursor: pointer;
 }
 
-#action_buttons button:hover {
+button.action_buttons:hover {
     background-color: rgb(216, 216, 216);
 }
 
-#action_buttons button:disabled {
+button.action_buttons:disabled {
     cursor: not-allowed;
     background-color: rgb(216, 216, 216);
 }
+
+/*
+ * SNACKBAR
+ */
 
 #saved_snackbar {
     visibility: hidden;
@@ -201,7 +320,7 @@ button:focus {
     position: fixed;
     z-index: 1;
     left: 60%;
-    bottom: 10px;
+    top: 70px;
 }
 
 #saved_snackbar.show {
@@ -214,44 +333,44 @@ button:focus {
 
 @-webkit-keyframes fadein {
     from {
-        bottom: 0;
+        top: 0;
         opacity: 0;
     }
     to {
-        bottom: 10px;
+        top: 70px;
         opacity: 1;
     }
 }
 
 @keyframes fadein {
     from {
-        bottom: 0;
+        top: 0;
         opacity: 0;
     }
     to {
-        bottom: 10px;
+        top: 70px;
         opacity: 1;
     }
 }
 
 @-webkit-keyframes fadeout {
     from {
-        bottom: 10px;
+        top: 70px;
         opacity: 1;
     }
     to {
-        bottom: 0;
+        top: 0;
         opacity: 0;
     }
 }
 
 @keyframes fadeout {
     from {
-        bottom: 10px;
+        top: 70px;
         opacity: 1;
     }
     to {
-        bottom: 0;
+        top: 0;
         opacity: 0;
     }
 }

@@ -43,15 +43,16 @@ var countdown_status, overtime_status;
 var timesUpSound = new Audio(chrome.runtime.getURL("audio/munchausen.mp3"));
 timesUpSound.loop = false;
 var soundOn;
-chrome.storage.sync.get(['soundOn'], function (data) {
-    soundOn = data.soundOn || true;
-    chrome.storage.onChanged.addListener(function (changes, area) {
-        if (area == "sync" && "soundOn" in changes) {
-            soundOn = changes.soundOn.newValue;
-        }
+function setVarsFromChromeStorage() {
+    chrome.storage.sync.get(['soundOn'], function (data) {
+        soundOn = data.soundOn || true;
+        chrome.storage.onChanged.addListener(function (changes, area) {
+            if (area == "sync" && "soundOn" in changes) {
+                soundOn = changes.soundOn.newValue;
+            }
+        });
     });
-});
-
+}
 
 /*
  * MAIN - HANDLES EVENTS FROM YOUTUBE AND POPUP PAGE
@@ -129,6 +130,7 @@ function reset() {
     hoursOver = minutesOver = secondsOver = undefined;
     stopCountdown();
     stopOvertime();
+    setVarsFromChromeStorage();
 }
 
 // Removes specific tab from active youtube tabs
