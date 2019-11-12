@@ -134,18 +134,22 @@ function reset() {
 // Set variables from chrome storage
 function setVarsFromChromeStorage() {
     chrome.storage.sync.get(['soundOn', 'presetTimes'], function (data) {
-        soundOn = data.soundOn || default_soundOn;
+        soundOn = typeof (data.soundOn) === 'undefined' ? default_soundOn : data.soundOn;
         preset_times = data.presetTimes || jQuery.extend(true, {}, default_presets);
-        chrome.storage.onChanged.addListener(function (changes, area) {
-            if (area == "sync") {
-                if ("soundOn" in changes) {
-                    soundOn = changes.soundOn.newValue;
-                }
-                if ("presetTimes" in changes) {
-                    preset_times = changes.presetTimes.newValue;
-                }
-            }
+        chrome.storage.sync.set({
+            'soundOn': soundOn,
+            'presetTimes': preset_times
         });
+    });
+    chrome.storage.onChanged.addListener(function (changes, area) {
+        if (area == "sync") {
+            if ("soundOn" in changes) {
+                soundOn = changes.soundOn.newValue;
+            }
+            if ("presetTimes" in changes) {
+                preset_times = changes.presetTimes.newValue;
+            }
+        }
     });
 }
 

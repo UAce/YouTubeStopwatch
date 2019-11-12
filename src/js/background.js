@@ -31,6 +31,7 @@ const event = {
     SHOW_ARTICLE: 'showArticle',
     START_OVERTIME: 'startOvertime'
 };
+const default_soundOn = true;
 
 
 /*
@@ -42,10 +43,11 @@ var countdown_status, overtime_status;
 // Sound from https://notificationsounds.com/
 var timesUpSound = new Audio(chrome.runtime.getURL("audio/munchausen.mp3"));
 timesUpSound.loop = false;
+timesUpSound.onended = countdownEndAction;
 var soundOn;
 function setVarsFromChromeStorage() {
     chrome.storage.sync.get(['soundOn'], function (data) {
-        soundOn = data.soundOn || true;
+        soundOn = typeof (data.soundOn) === 'undefined' ? default_soundOn : data.soundOn;
         chrome.storage.onChanged.addListener(function (changes, area) {
             if (area == "sync" && "soundOn" in changes) {
                 soundOn = changes.soundOn.newValue;
@@ -53,6 +55,7 @@ function setVarsFromChromeStorage() {
         });
     });
 }
+setVarsFromChromeStorage();
 
 /*
  * MAIN - HANDLES EVENTS FROM YOUTUBE AND POPUP PAGE
@@ -207,21 +210,13 @@ function countdown(seconds) {
         // console.log("Time Remaining:", remainingTime);
         if (remainingTime < 0) {
             clearInterval(countdownId);
-            soundOn ? timesUpSound.play() : null;
             remainingTime = -1;
             stopCountdown(true);
             chrome.storage.sync.set({ 'blur_value': 3 });
-            if (confirm('Oops! Looks like you ran out of time. Exit YouTube?\n\nWARNING: If you click on “cancel” you will be subject to video visual deterioration on YouTube and awareness article pop-ups.')) {
-                active_youtube_tabs.forEach(function (id) {
-                    // Close all YouTube tabs
-                    chrome.tabs.remove(id);
-                });
+            if (soundOn) {
+                timesUpSound.play();
             } else {
-                active_youtube_tabs.forEach(function (id) {
-                    chrome.tabs.sendMessage(id, { from: source.BACKGROUND, event: event.START_OVERTIME });
-                });
-                showArticle();
-                startOvertime();
+                countdownEndAction();
             }
             return;
         }
@@ -240,8 +235,8 @@ function countdown(seconds) {
 function startCountdown() {
     printEvent('START COUNTDOWN');
     chrome.storage.sync.get(['remainingTime'], function (data) {
-        countdown(data.remainingTime);
-        // countdown(3);
+        // countdown(data.remainingTime);
+        countdown(3);
         chrome.storage.sync.set({ 'countdown_status': status.STARTED });
         countdown_status = status.STARTED;
         setBadge(status.STARTED);
@@ -259,6 +254,21 @@ function stopCountdown(isOver) {
     chrome.storage.sync.set({ 'countdown_status': state });
     countdown_status = state;
     setBadge(state);
+}
+
+function countdownEndAction() {
+    if (confirm('Oops! Looks like you ran out of time. Exit YouTube?\n\nWARNING: If you click on “cancel” you will be subject to video visual deterioration on YouTube and awareness article pop-ups.')) {
+        active_youtube_tabs.forEach(function (id) {
+            // Close all YouTube tabs
+            chrome.tabs.remove(id);
+        });
+    } else {
+        active_youtube_tabs.forEach(function (id) {
+            chrome.tabs.sendMessage(id, { from: source.BACKGROUND, event: event.START_OVERTIME });
+        });
+        showArticle();
+        startOvertime();
+    }
 }
 
 

@@ -88,7 +88,8 @@ $('#showLastArticle').click(function () {
  */
 function initSettings() {
   chrome.storage.sync.get(['soundOn', 'presetTimes'], function (data) {
-    $("#soundOn").prop('checked', data.soundOn || default_soundOn);
+    var soundOn = typeof (data.soundOn) === 'undefined' ? default_soundOn : data.soundOn;
+    $("#soundOn").prop('checked', soundOn);
     preset_list = data.presetTimes || jQuery.extend(true, {}, default_presets);
     populatePresets();
     showPresets();
@@ -140,8 +141,7 @@ document.addEventListener('keydown', function (event) {
 // Save setting changes
 $('#save_changes').click(function () {
   chrome.storage.sync.set({
-    'soundOn': $('#soundOn').prop('checked'),
-    'presetTimes': preset_list
+    'soundOn': $('#soundOn').prop('checked'), 'presetTimes': preset_list
   }, function () {
     var snackbar = document.getElementById("saved_snackbar");
     snackbar.className = "show";
@@ -157,7 +157,7 @@ $('#save_changes').click(function () {
 // Restore default settings
 $('#restore_default').click(function () {
   // Default values: soundOn = true
-  $("#soundOn").prop('checked', true);
+  $("#soundOn").prop('checked', default_soundOn);
   preset_list = jQuery.extend(true, {}, default_presets);
   $('#preset_list').html('');
   populatePresets();
