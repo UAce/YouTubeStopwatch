@@ -100,7 +100,11 @@ $('#back').click(function () {
 // Reset
 $('#reset').click(function () {
   chrome.runtime.sendMessage({ from: source.POPUP, event: event.RESET });
-  chrome.storage.sync.set({ 'remainingTime': 'undefined', 'exceededTime': 'undefined', 'blur_value': 0 });
+  chrome.storage.sync.set({
+    'remainingTime': 'undefined',
+    'exceededTime': 'undefined',
+    'blur_value': default_blurValue
+  });
   $('#displayedTime').html('Timer has not been set');
   $('#preset_list').html('');
   initSettings();

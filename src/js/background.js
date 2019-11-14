@@ -30,7 +30,13 @@ setVarsFromChromeStorage();
  * MAIN - HANDLES EVENTS FROM YOUTUBE AND POPUP PAGE
  */
 chrome.runtime.onInstalled.addListener(function () {
-    chrome.storage.sync.set({ 'remainingTime': 'undefined', 'exceededTime': 'undefined' });
+    chrome.storage.sync.set({
+        'remainingTime': 'undefined',
+        'exceededTime': 'undefined',
+        'soundOn': default_soundOn,
+        'presetTimes': jQuery.extend(true, {}, default_presets),
+        'blur_value': default_blurValue
+    });
     // console.log("Installed");
 });
 chrome.runtime.onMessage.addListener(function (msg, sender) {
@@ -186,7 +192,6 @@ function countdown(seconds) {
             clearInterval(countdownId);
             remainingTime = -1;
             stopCountdown();
-            chrome.storage.sync.set({ 'blur_value': 3 });
             if (soundOn) {
                 timesUpSound.play();
             } else {

@@ -6,8 +6,8 @@
 var currentTabId;
 var blurIntervalId;
 var isPresetAdded = false;
-var localCountdownStarted = false;
-var localOvertimeStarted = false;
+var countdownStarted = false;
+var overtimeStarted = false;
 var isPageReady = false;
 var soundOn;
 var preset_times;
@@ -65,13 +65,13 @@ function init(activeRemainingTime, activeTimeOver) {
         if (remainingTime < 0) {     // Time limit reached: apply and increase blur every 5min, and start overtime if not started
             chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_OVERTIME });
             blur();
-            if (!localOvertimeStarted) {
+            if (!overtimeStarted) {
                 overtime(exceededTime);
             }
         } else if (remainingTime >= 0) {      // Has Time remaining: remove modal and start local countdown if not started
             chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_COUNTDOWN });
             removeModal();
-            if (!localCountdownStarted) {
+            if (!countdownStarted) {
                 countdown(remainingTime);
             }
         } else {        // Time not set, show modal
@@ -110,6 +110,8 @@ function setVarsFromChromeStorage() {
             }
             if ("presetTimes" in changes) {
                 preset_times = changes.presetTimes.newValue;
+                removeModal();
+                showTimeModal();
             }
         }
     });
@@ -616,7 +618,7 @@ function injectTimerIcon() {
 var countdownIntervalId, remainingTime, hours, minutes, seconds;
 
 function countdown(seconds) {
-    localCountdownStarted = true;
+    countdownStarted = true;
     clearInterval(overtimeId);
     var now = new Date().getTime();
     var target = new Date(now + seconds * 1000);
@@ -631,6 +633,7 @@ function countdown(seconds) {
             $('#time-remaining').removeClass('warning');
             $('#time-remaining').html("Time's up!!");
             clearInterval(countdownIntervalId);
+            countdownStarted = false;
         } else if (!$('#time-remaining').hasClass('warning') && remainingTime < FIVE_MINUTES_IN_S) {
             $('#time-remaining').addClass('warning');
         } else {
@@ -649,7 +652,7 @@ function countdown(seconds) {
 var overtimeId, exceededTime, exceededHours, exceededMinutes, exceededSeconds;
 
 function overtime(savedTimeOver) {
-    localOvertimeStarted = true;
+    overtimeStarted = true;
     clearInterval(countdownIntervalId);
     var start = new Date().getTime();
     var update = 500;
