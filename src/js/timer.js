@@ -29,8 +29,8 @@ let background = chrome.extension.getBackgroundPage(); // instance of background
  * VARIABLES
  */
 var hours, minutes, seconds, remainingTime;
-var timeOver, hoursOver, minutesOver, secondsOver;
-if (typeof (background.remainingHours) === 'undefined' || typeof (background.remainingMinutes) === 'undefined' || typeof (background.remainingSeconds) === 'undefined') {
+var exceededTime, exceededHours, exceededMinutes, exceededSeconds;
+if (typeof (background.remainingTime) === 'undefined') {
   $('#displayedTime').html('Timer has not been set');
 }
 var preset_list;
@@ -41,29 +41,31 @@ var preset_list;
  */
 var intervalId = setInterval(function () {
   background = chrome.extension.getBackgroundPage(); // instance of background script
-  var countdown_status = background.countdown_status;
-
-  if (countdown_status === status.STARTED) {
-    // Countdown
-    hours = background.remainingHours;
-    minutes = background.remainingMinutes;
-    seconds = background.remainingSeconds;
+  if (typeof (background.remainingTime) === 'undefined') {
+    return;
+  }
+  if (background.active_youtube_tabs.length > 0) {
     remainingTime = Math.floor(background.remainingTime);
-
-    if (remainingTime <= 0 && $('#displayedTime').html() !== "Time's up!!") {
+    if (remainingTime === 0 && $('#displayedTime').html() !== "Time's up!!") {
       $('#displayedTime').html("Time's up!!");
     } else if (remainingTime > 0) {
+      // Countdown
+      hours = background.remainingHours;
+      minutes = background.remainingMinutes;
+      seconds = background.remainingSeconds;
       $('#displayedTime').html('Time remaining: ' + format(hours) + ":" + format(minutes) + ":" + format(seconds));
+    } else {
+      // Overtime
+      exceededHours = background.exceededHours;
+      exceededMinutes = background.exceededMinutes;
+      exceededSeconds = background.exceededSeconds;
+      $('#displayedTime').html("Overtime");
+      if (typeof (exceededHours) !== 'undefined' && typeof (exceededMinutes) !== 'undefined' && typeof (exceededSeconds) !== 'undefined') {
+        $('#displayedTime').append(': ' + format(exceededHours) + ":" + format(exceededMinutes) + ":" + format(exceededSeconds));
+      }
     }
-  } else if (countdown_status === status.OVER) {
-    // Overtime
-    hoursOver = background.hoursOver;
-    minutesOver = background.minutesOver;
-    secondsOver = background.secondsOver;
-    $('#displayedTime').html("Overtime");
-    if (typeof (hoursOver) !== 'undefined' && typeof (minutesOver) !== 'undefined' && typeof (secondsOver) !== 'undefined') {
-      $('#displayedTime').append(': ' + format(hoursOver) + ":" + format(minutesOver) + ":" + format(secondsOver));
-    }
+  } else {
+    $('#displayedTime').html("");
   }
 }, 500);
 

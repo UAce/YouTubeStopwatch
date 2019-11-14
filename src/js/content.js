@@ -75,7 +75,7 @@ chrome.runtime.onMessage.addListener(function (msg) {
         // console.log(msg.event, " event received!");
         switch (msg.event) {
             case event.INIT:
-                init(msg.remainingTime, msg.timeOver);
+                init(msg.remainingTime, msg.exceededTime);
                 break;
             case event.RESET:
                 reset();
@@ -88,7 +88,7 @@ chrome.runtime.onMessage.addListener(function (msg) {
                 break;
             case event.START_OVERTIME:
                 blur();
-                overtime(msg.timeOver);
+                overtime(msg.exceededTime);
                 break;
             default:
                 break;
@@ -98,15 +98,15 @@ chrome.runtime.onMessage.addListener(function (msg) {
 
 // Init function to decide whether to show modal, start countdown or overtime
 function init(activeRemainingTime, activeTimeOver) {
-    chrome.storage.sync.get(['countdown_status', 'remainingTime', 'overtime_status', 'timeOver'], function (data) {
+    chrome.storage.sync.get(['countdown_status', 'remainingTime', 'overtime_status', 'exceededTime'], function (data) {
         var countdown_status = data.countdown_status;
         var remainingTime = activeRemainingTime || data.remainingTime;
         var overtime_status = data.overtime_status;
-        var timeOver = activeTimeOver || data.timeOver;
+        var exceededTime = activeTimeOver || data.exceededTime;
         if (countdown_status === status.OVER) {     // Time limit reached, apply and increase blur every 5min
             overtime_status === status.STOPPED ? chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_OVERTIME }) : null;
             blur();
-            localOvertimeStarted ? null : overtime(timeOver);
+            localOvertimeStarted ? null : overtime(exceededTime);
         } else if (countdown_status === status.STARTED && remainingTime > 0) {      // Countdown started, remove modal and start local countdown if not already started
             removeModal();
             localCountdownStarted ? null : countdown(remainingTime);
@@ -685,7 +685,7 @@ function countdown(seconds) {
 /*
  * OVERTIME
 */
-var overtimeId, timeOver, hoursOver, minutesOver, secondsOver;
+var overtimeId, exceededTime, exceededHours, exceededMinutes, exceededSeconds;
 
 function overtime(savedTimeOver) {
     localOvertimeStarted = true;
@@ -697,14 +697,14 @@ function overtime(savedTimeOver) {
     overtimeId = setInterval(function () {
         $('#time-remaining').addClass('overtime');
         var now = new Date();
-        timeOver = (now - start) / 1000;
+        exceededTime = (now - start) / 1000;
         if (savedTimeOver) {
-            timeOver += savedTimeOver;
+            exceededTime += savedTimeOver;
         }
-        hoursOver = ~~((timeOver / 3600));
-        minutesOver = ~~((timeOver / 60) % 60);
-        secondsOver = ~~(timeOver % 60);
-        $('#time-remaining').html(format(hoursOver) + ":" + format(minutesOver) + ":" + format(secondsOver));
+        exceededHours = ~~((exceededTime / 3600));
+        exceededMinutes = ~~((exceededTime / 60) % 60);
+        exceededSeconds = ~~(exceededTime % 60);
+        $('#time-remaining').html(format(exceededHours) + ":" + format(exceededMinutes) + ":" + format(exceededSeconds));
     }, update);
 }
 
