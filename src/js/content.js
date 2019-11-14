@@ -44,11 +44,11 @@ chrome.runtime.onMessage.addListener(function (msg) {
                 showSnackbar();
                 break;
             case event.START_COUNTDOWN:
-                countdown(msg.remainingTime);
+                startCountdown(msg.remainingTime);
                 break;
             case event.START_OVERTIME:
                 blur();
-                overtime(msg.exceededTime);
+                startOvertime(msg.exceededTime);
                 break;
             default:
                 break;
@@ -61,18 +61,18 @@ function init(activeRemainingTime, activeTimeOver) {
     chrome.storage.sync.get(['remainingTime', 'exceededTime'], function (data) {
         var remainingTime = activeRemainingTime || data.remainingTime;
         var exceededTime = activeTimeOver || data.exceededTime;
-        // console.log(remainingTime, exceededTime);
+        // console.log("Init:", remainingTime, exceededTime);
         if (remainingTime < 0) {     // Time limit reached: apply and increase blur every 5min, and start overtime if not started
             chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_OVERTIME });
             blur();
             if (!overtimeStarted) {
-                overtime(exceededTime);
+                startOvertime(exceededTime);
             }
         } else if (remainingTime >= 0) {      // Has Time remaining: remove modal and start local countdown if not started
             chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_COUNTDOWN });
             removeModal();
             if (!countdownStarted) {
-                countdown(remainingTime);
+                startCountdown(remainingTime);
             }
         } else {        // Time not set, show modal
             showTimeModal();
@@ -87,8 +87,8 @@ function reset() {
     clearInterval(countdownIntervalId);
     clearInterval(overtimeId);
     $('#blurStyle').remove();
-    $('#time-remaining').removeClass('warning');
-    $('#time-remaining').removeClass('overtime');
+    $('#hourglass-displayedTime').removeClass('warning');
+    $('#hourglass-displayedTime').removeClass('overtime');
     setVarsFromChromeStorage();
     chrome.runtime.sendMessage({ from: source.PAGE, event: event.INIT });
 }
@@ -355,7 +355,7 @@ function showTimeModal() {
                             });
                             var lastCountdownStartDate = (new Date()).getTime();
                             chrome.storage.sync.set({ 'lastCountdownStartDate': lastCountdownStartDate });
-                            countdown(estimatedTime);
+                            startCountdown(estimatedTime);
                         }
                         $(this).dialog("close");
                         removeModal();
@@ -549,7 +549,7 @@ function injectTimerIcon() {
     containerDiv.appendChild(imgIcon);
 
     var tooltip = document.createElement('div');
-    tooltip.innerHTML = '<div class="time-remaining" id="time-remaining"></div>'.trim();
+    tooltip.innerHTML = '<div class="hourglass-displayedTime" id="hourglass-displayedTime"></div>'.trim();
     tooltip.id = tooltip.className = "timer-tooltip";
     containerDiv.appendChild(tooltip);
 
@@ -575,7 +575,7 @@ function injectTimerIcon() {
         opacity: 1;
       }
       
-      .time-remaining {
+      .hourglass-displayedTime {
         color: white;
         font-size: 18px;
         position: absolute;
@@ -609,6 +609,7 @@ function injectTimerIcon() {
     // Add hourglass next to YouTube logo
     var youtubeLogo = document.getElementsByTagName('ytd-topbar-logo-renderer')[0];
     youtubeLogo.parentNode.insertBefore(containerDiv, youtubeLogo.nextSibling); // Insert timer-container div after youtube logo
+    $('#hourglass-displayedTime').html("----");
 }
 
 
@@ -617,7 +618,7 @@ function injectTimerIcon() {
  */
 var countdownIntervalId, remainingTime, hours, minutes, seconds;
 
-function countdown(seconds) {
+function startCountdown(seconds) {
     countdownStarted = true;
     clearInterval(overtimeId);
     var now = new Date().getTime();
@@ -630,17 +631,18 @@ function countdown(seconds) {
         remainingTime = (target - now) / 1000;
         if (remainingTime < 0) {
             remainingTime = -1;
-            $('#time-remaining').removeClass('warning');
-            $('#time-remaining').html("Time's up!!");
+            $('#hourglass-displayedTime').removeClass('warning');
+            $('#hourglass-displayedTime').html("Time's up!!");
             clearInterval(countdownIntervalId);
             countdownStarted = false;
-        } else if (!$('#time-remaining').hasClass('warning') && remainingTime < FIVE_MINUTES_IN_S) {
-            $('#time-remaining').addClass('warning');
         } else {
             var hours = ~~((remainingTime / 3600));
             var minutes = ~~((remainingTime / 60) % 60);
             var seconds = ~~(remainingTime % 60);
-            $('#time-remaining').html(format(hours) + ":" + format(minutes) + ":" + format(seconds));
+            $('#hourglass-displayedTime').html(format(hours) + ":" + format(minutes) + ":" + format(seconds));
+        }
+        if (remainingTime < FIVE_MINUTES_IN_S && !$('#hourglass-displayedTime').hasClass('warning')) {
+            $('#hourglass-displayedTime').addClass('warning');
         }
     }, update);
 }
@@ -651,7 +653,7 @@ function countdown(seconds) {
 */
 var overtimeId, exceededTime, exceededHours, exceededMinutes, exceededSeconds;
 
-function overtime(savedTimeOver) {
+function startOvertime(savedTimeOver) {
     overtimeStarted = true;
     clearInterval(countdownIntervalId);
     var start = new Date().getTime();
@@ -659,7 +661,7 @@ function overtime(savedTimeOver) {
     clearInterval(overtimeId);
     overtimeId = null;
     overtimeId = setInterval(function () {
-        $('#time-remaining').addClass('overtime');
+        $('#hourglass-displayedTime').addClass('overtime');
         var now = new Date();
         exceededTime = (now - start) / 1000;
         if (savedTimeOver) {
@@ -668,7 +670,7 @@ function overtime(savedTimeOver) {
         exceededHours = ~~((exceededTime / 3600));
         exceededMinutes = ~~((exceededTime / 60) % 60);
         exceededSeconds = ~~(exceededTime % 60);
-        $('#time-remaining').html(format(exceededHours) + ":" + format(exceededMinutes) + ":" + format(exceededSeconds));
+        $('#hourglass-displayedTime').html(format(exceededHours) + ":" + format(exceededMinutes) + ":" + format(exceededSeconds));
     }, update);
 }
 

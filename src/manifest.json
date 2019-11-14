@@ -1,6 +1,6 @@
 {
     "name": "YouTubeStopwatch",
-    "version": "0.4.0",
+    "version": "0.4.1",
     "description": "A chrome extension that is used to help users plan, monitor, control their YouTube usage.",
     "background": {
         "scripts": [

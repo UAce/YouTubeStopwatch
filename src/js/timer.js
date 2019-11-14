@@ -30,19 +30,19 @@ var intervalId = setInterval(function () {
     $('#displayedTime').html("Time's up!!");
   } else if (remainingTime > 0) {
     // Countdown
-    hours = bg.remainingHours;
-    minutes = bg.remainingMinutes;
-    seconds = bg.remainingSeconds;
-    $('#displayedTime').html('Time remaining: ' + format(hours) + ":" + format(minutes) + ":" + format(seconds));
+    hours = format_undefined(bg.remainingHours);
+    minutes = format_undefined(bg.remainingMinutes);
+    seconds = format_undefined(bg.remainingSeconds);
+    $('#displayedTime').html('Time remaining: ' + format_zero(hours) + ":" + format_zero(minutes) + ":" + format_zero(seconds));
   } else {
     // Overtime
     exceededTime = bg.exceededTime;
-    exceededHours = bg.exceededHours;
-    exceededMinutes = bg.exceededMinutes;
-    exceededSeconds = bg.exceededSeconds;
+    exceededHours = format_undefined(bg.exceededHours);
+    exceededMinutes = format_undefined(bg.exceededMinutes);
+    exceededSeconds = format_undefined(bg.exceededSeconds);
     $('#displayedTime').html("Overtime");
     if (exceededTime > 0) {
-      $('#displayedTime').append(': ' + format(exceededHours) + ":" + format(exceededMinutes) + ":" + format(exceededSeconds));
+      $('#displayedTime').append(': ' + format_zero(exceededHours) + ":" + format_zero(exceededMinutes) + ":" + format_zero(exceededSeconds));
     }
   }
 }, 500);
@@ -219,6 +219,9 @@ function clear_inputs() {
 /*
  * HELPERS
  */
-function format(num) {
+function format_undefined(num) {
+  return num === 'undefined' ? '--' : num;
+}
+function format_zero(num) {
   return num < 10 ? "0" + num : num;
 }
