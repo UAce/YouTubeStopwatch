@@ -98,22 +98,23 @@ chrome.runtime.onMessage.addListener(function (msg) {
 
 // Init function to decide whether to show modal, start countdown or overtime
 function init(activeRemainingTime, activeTimeOver) {
-    chrome.storage.sync.get(['countdown_status', 'remainingTime', 'overtime_status', 'exceededTime'], function (data) {
-        var countdown_status = data.countdown_status;
+    chrome.storage.sync.get(['remainingTime', 'exceededTime'], function (data) {
         var remainingTime = activeRemainingTime || data.remainingTime;
-        var overtime_status = data.overtime_status;
         var exceededTime = activeTimeOver || data.exceededTime;
-        if (countdown_status === status.OVER) {     // Time limit reached, apply and increase blur every 5min
-            overtime_status === status.STOPPED ? chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_OVERTIME }) : null;
+        // console.log(remainingTime, exceededTime);
+        if (remainingTime < 0) {     // Time limit reached: apply and increase blur every 5min, and start overtime if not started
+            chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_OVERTIME });
             blur();
-            localOvertimeStarted ? null : overtime(exceededTime);
-        } else if (countdown_status === status.STARTED && remainingTime > 0) {      // Countdown started, remove modal and start local countdown if not already started
-            removeModal();
-            localCountdownStarted ? null : countdown(remainingTime);
-            return;
-        } else if (countdown_status === status.STOPPED && remainingTime > 0) {      // Countdown stopped, resume countdown
+            if (!localOvertimeStarted) {
+                overtime(exceededTime);
+            }
+        } else if (remainingTime >= 0) {      // Has Time remaining: remove modal and start local countdown if not started
             chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_COUNTDOWN });
-        } else {        // Countdown not started yet, show modal
+            removeModal();
+            if (!localCountdownStarted) {
+                countdown(remainingTime);
+            }
+        } else {        // Time not set, show modal
             showTimeModal();
         }
     });

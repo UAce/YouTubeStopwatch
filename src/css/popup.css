@@ -374,3 +374,13 @@ button.action_buttons:disabled {
         opacity: 0;
     }
 }
+
+.paused {
+    animation: blink 1s linear infinite;
+}
+
+@keyframes blink {
+    50% {
+        opacity: 20%;
+    }
+}

@@ -30,7 +30,7 @@ let background = chrome.extension.getBackgroundPage(); // instance of background
  */
 var hours, minutes, seconds, remainingTime;
 var exceededTime, exceededHours, exceededMinutes, exceededSeconds;
-if (typeof (background.remainingTime) === 'undefined') {
+if (background.remainingTime === 'undefined') {
   $('#displayedTime').html('Timer has not been set');
 }
 var preset_list;
@@ -41,31 +41,34 @@ var preset_list;
  */
 var intervalId = setInterval(function () {
   background = chrome.extension.getBackgroundPage(); // instance of background script
-  if (typeof (background.remainingTime) === 'undefined') {
+  // console.log(background.remainingTime);
+  if (background.remainingTime === 'undefined') {
     return;
   }
   if (background.active_youtube_tabs.length > 0) {
-    remainingTime = Math.floor(background.remainingTime);
-    if (remainingTime === 0 && $('#displayedTime').html() !== "Time's up!!") {
-      $('#displayedTime').html("Time's up!!");
-    } else if (remainingTime > 0) {
-      // Countdown
-      hours = background.remainingHours;
-      minutes = background.remainingMinutes;
-      seconds = background.remainingSeconds;
-      $('#displayedTime').html('Time remaining: ' + format(hours) + ":" + format(minutes) + ":" + format(seconds));
-    } else {
-      // Overtime
-      exceededHours = background.exceededHours;
-      exceededMinutes = background.exceededMinutes;
-      exceededSeconds = background.exceededSeconds;
-      $('#displayedTime').html("Overtime");
-      if (typeof (exceededHours) !== 'undefined' && typeof (exceededMinutes) !== 'undefined' && typeof (exceededSeconds) !== 'undefined') {
-        $('#displayedTime').append(': ' + format(exceededHours) + ":" + format(exceededMinutes) + ":" + format(exceededSeconds));
-      }
-    }
+    $('#displayedTime').removeClass('paused');
   } else {
-    $('#displayedTime').html("");
+    $('#displayedTime').addClass('paused');
+  }
+  remainingTime = Math.floor(background.remainingTime);
+  if (remainingTime === 0 && $('#displayedTime').html() !== "Time's up!!") {
+    $('#displayedTime').html("Time's up!!");
+  } else if (remainingTime > 0) {
+    // Countdown
+    hours = background.remainingHours;
+    minutes = background.remainingMinutes;
+    seconds = background.remainingSeconds;
+    $('#displayedTime').html('Time remaining: ' + format(hours) + ":" + format(minutes) + ":" + format(seconds));
+  } else {
+    // Overtime
+    exceededTime = background.exceededTime;
+    exceededHours = background.exceededHours;
+    exceededMinutes = background.exceededMinutes;
+    exceededSeconds = background.exceededSeconds;
+    $('#displayedTime').html("Overtime");
+    if (exceededTime > 0) {
+      $('#displayedTime').append(': ' + format(exceededHours) + ":" + format(exceededMinutes) + ":" + format(exceededSeconds));
+    }
   }
 }, 500);
 
@@ -121,10 +124,9 @@ $('#back').click(function () {
 
 // Reset
 $('#reset').click(function () {
-  chrome.storage.sync.clear(function () {
-    chrome.runtime.sendMessage({ from: source.POPUP, event: event.RESET });
-    $('#displayedTime').html('Timer has not been set');
-  });
+  chrome.runtime.sendMessage({ from: source.POPUP, event: event.RESET });
+  chrome.storage.sync.set({ 'remainingTime': 'undefined', 'exceededTime': 'undefined', 'blur_value': 0 });
+  $('#displayedTime').html('Timer has not been set');
   $('#preset_list').html('');
   initSettings();
 });
