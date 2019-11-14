@@ -1,36 +1,11 @@
-/*
- * CONSTANTS
- */
-const status = {
-  STARTED: 'started',
-  STOPPED: 'stopped',
-  OVER: 'over'
-};
-const source = {
-  BACKGROUND: 'background',
-  PAGE: 'youtube',
-  POPUP: 'popup'
-};
-const event = {
-  INIT: 'init',
-  RESET: 'reset',
-  SNACKBAR: 'showSnackbar',
-  CLOSE_TAB: 'closeTab',
-  START_COUNTDOWN: 'startCountdown',
-  SHOW_ARTICLE: 'showArticle',
-  START_OVERTIME: 'startOvertime'
-};
-const default_presets = { "30min": 30, "1h": 60, "2h": 120, "12h": 720 };
-const default_soundOn = true;
-let background = chrome.extension.getBackgroundPage(); // instance of background script
-
+let bg = chrome.extension.getBackgroundPage(); // instance of background script
 
 /*
  * VARIABLES
  */
 var hours, minutes, seconds, remainingTime;
 var exceededTime, exceededHours, exceededMinutes, exceededSeconds;
-if (background.remainingTime === 'undefined') {
+if (bg.remainingTime === 'undefined') {
   $('#displayedTime').html('Timer has not been set');
 }
 var preset_list;
@@ -40,31 +15,31 @@ var preset_list;
  * COUNTDOWN/OVERTIME
  */
 var intervalId = setInterval(function () {
-  background = chrome.extension.getBackgroundPage(); // instance of background script
-  // console.log(background.remainingTime);
-  if (background.remainingTime === 'undefined') {
+  bg = chrome.extension.getBackgroundPage(); // instance of bg script
+  // console.log(bg.remainingTime);
+  if (bg.remainingTime === 'undefined') {
     return;
   }
-  if (background.active_youtube_tabs.length > 0) {
+  if (bg.active_youtube_tabs.length > 0) {
     $('#displayedTime').removeClass('paused');
   } else {
     $('#displayedTime').addClass('paused');
   }
-  remainingTime = Math.floor(background.remainingTime);
+  remainingTime = Math.floor(bg.remainingTime);
   if (remainingTime === 0 && $('#displayedTime').html() !== "Time's up!!") {
     $('#displayedTime').html("Time's up!!");
   } else if (remainingTime > 0) {
     // Countdown
-    hours = background.remainingHours;
-    minutes = background.remainingMinutes;
-    seconds = background.remainingSeconds;
+    hours = bg.remainingHours;
+    minutes = bg.remainingMinutes;
+    seconds = bg.remainingSeconds;
     $('#displayedTime').html('Time remaining: ' + format(hours) + ":" + format(minutes) + ":" + format(seconds));
   } else {
     // Overtime
-    exceededTime = background.exceededTime;
-    exceededHours = background.exceededHours;
-    exceededMinutes = background.exceededMinutes;
-    exceededSeconds = background.exceededSeconds;
+    exceededTime = bg.exceededTime;
+    exceededHours = bg.exceededHours;
+    exceededMinutes = bg.exceededMinutes;
+    exceededSeconds = bg.exceededSeconds;
     $('#displayedTime').html("Overtime");
     if (exceededTime > 0) {
       $('#displayedTime').append(': ' + format(exceededHours) + ":" + format(exceededMinutes) + ":" + format(exceededSeconds));

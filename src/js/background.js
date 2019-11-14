@@ -2,37 +2,6 @@
 
 // console.log('background script loaded!');
 
-/*
- * CONSTANTS
- */
-const status = {
-    STARTED: 'started',
-    STOPPED: 'stopped',
-    OVER: 'over'
-};
-const source = {
-    BACKGROUND: 'background',
-    PAGE: 'youtube',
-    POPUP: 'popup'
-};
-const color = {
-    GREY: '#bbbdbb',
-    RED: '#F50F0F',
-    BLUE: '#1c2efc',
-    GREEN: '#4bb543'
-};
-const event = {
-    INIT: 'init',
-    INIT_ALL: 'initAll',
-    RESET: 'reset',
-    SNACKBAR: 'showSnackbar',
-    CLOSE_TAB: 'closeTab',
-    START_COUNTDOWN: 'startCountdown',
-    SHOW_ARTICLE: 'showArticle',
-    START_OVERTIME: 'startOvertime'
-};
-const default_soundOn = true;
-
 
 /*
  * VARIABLES
@@ -40,7 +9,6 @@ const default_soundOn = true;
 var active_youtube_tabs = [];
 var countdownStarted = false;
 var overtimeStarted = false;
-var FIVE_MINUTES_IN_S = 300;
 // Sound from https://notificationsounds.com/
 var timesUpSound = new Audio(chrome.runtime.getURL("audio/munchausen.mp3"));
 timesUpSound.loop = false;
@@ -63,10 +31,7 @@ setVarsFromChromeStorage();
  */
 chrome.runtime.onInstalled.addListener(function () {
     chrome.storage.sync.set({ 'remainingTime': 'undefined', 'exceededTime': 'undefined' });
-    console.log("Installed");
-    chrome.storage.sync.get(['remainingTime', 'exceededTime'], function (data) {
-        console.log(data);
-    });
+    // console.log("Installed");
 });
 chrome.runtime.onMessage.addListener(function (msg, sender) {
     var tabId = sender.tab ? sender.tab.id : null;
@@ -151,12 +116,12 @@ function removeYoutubeTab(tabId) {
             stopOvertime();
         }
     }
-    console.log("Youtube tab closed", tabId, active_youtube_tabs);
+    // console.log("Youtube tab closed", tabId, active_youtube_tabs);
 }
 
 // Subscribes tab to active youtube tabs and adds listener to url changes
 function addListeners(tabId) {
-    console.log("Youtube tab opened", tabId);
+    // console.log("Youtube tab opened", tabId);
     active_youtube_tabs.push(tabId);
     chrome.tabs.onRemoved.addListener(function (id) {
         if (tabId === id) {
@@ -181,20 +146,19 @@ function addListeners(tabId) {
 function setBadge(state) {
     switch (state) {
         case status.STARTED:
-            console.log("On");
-            chrome.browserAction.setBadgeText({ text: 'ON' });
+            chrome.browserAction.setBadgeText({ 'text': 'ON' });
             chrome.browserAction.setBadgeBackgroundColor({ color: color.GREEN });
             break;
         case status.OVER:
-            console.log("OVER");
             chrome.browserAction.setBadgeText({ 'text': 'OVER' });
             chrome.browserAction.setBadgeBackgroundColor({ color: color.RED });
             break;
-        case status.STOPPED:
+        case status.PAUSED:
         // I purposely removed the break
         default:
-            console.log("OFF");
-            // chrome.browserAction.setIcon({path:"my-icon.png"});
+            // chrome.browserAction.setIcon({
+            //     path: chrome.runtime.getURL("img/paused_icon.png")
+            // });
             chrome.browserAction.setBadgeText({ 'text': 'OFF' });
             chrome.browserAction.setBadgeBackgroundColor({ color: color.GREY });
             break;
@@ -221,7 +185,7 @@ function countdown(seconds) {
         if (remainingTime < 0) {
             clearInterval(countdownId);
             remainingTime = -1;
-            stopCountdown(true);
+            stopCountdown();
             chrome.storage.sync.set({ 'blur_value': 3 });
             if (soundOn) {
                 timesUpSound.play();
@@ -255,11 +219,11 @@ function startCountdown() {
     });
 }
 
-function stopCountdown(isOver) {
+function stopCountdown() {
     printEvent('STOP COUNTDOWN');
     clearInterval(countdownId);
     countdownStarted = false;
-    var state = status.STOPPED;
+    var state = status.PAUSED;
     if (remainingTime < 0) {
         state = status.OVER;
     }
@@ -299,7 +263,7 @@ function overtime(savedTimeOver) {
         if (savedTimeOver) {
             exceededTime += savedTimeOver;
         }
-        // console.log("Time Over:", exceededTime);
+        // show article again after 5min
         if (exceededTime === 300) {
             showArticle();
         }
@@ -326,7 +290,7 @@ function stopOvertime() {
     clearInterval(overtimeId);
     overtimeStarted = false;
     chrome.storage.sync.set({ 'exceededTime': exceededTime });
-    setBadge(status.STOPPED);
+    setBadge(status.PAUSED);
 }
 
 
@@ -354,8 +318,14 @@ function randomIntFromInterval(min, max) {
     return Math.floor(Math.random() * (max - min + 1) + min);
 }
 
+// Save time every 5s
 setInterval(function () {
-    chrome.storage.sync.set({ 'remainingTime': remainingTime, 'exceededTime': exceededTime });
+    if (countdownStarted) {
+        chrome.storage.sync.set({ 'remainingTime': remainingTime });
+    }
+    if (overtimeStarted) {
+        chrome.storage.sync.set({ 'exceededTime': exceededTime });
+    }
 }, 5000);
 
 
