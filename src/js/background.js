@@ -1,6 +1,6 @@
 'use strict';
 
-console.log('background script loaded!');
+// console.log('background script loaded!');
 chrome.runtime.onInstalled.addListener(function () {
     chrome.storage.sync.set({
         'remainingTime': 'undefined',
@@ -9,7 +9,7 @@ chrome.runtime.onInstalled.addListener(function () {
         'presetTimes': jQuery.extend(true, {}, default_presets),
         'blur_value': default_blurValue
     });
-    console.log("Installed");
+    // console.log("Installed");
 });
 
 /*
@@ -57,7 +57,7 @@ function initBackground() {
     setBadge('');
     chrome.runtime.onMessage.addListener(function (msg, sender) {
         var tabId = sender.tab ? sender.tab.id : null;
-        console.log("Received from", tabId, msg);
+        // console.log("Received from", tabId, msg);
         if (msg.from === source.PAGE && typeof (msg.event) === 'undefined') {
             active_youtube_tabs.indexOf(tabId) < 0 ? addListeners(tabId) : null;
             chrome.tabs.sendMessage(tabId, {

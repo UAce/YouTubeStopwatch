@@ -1,4 +1,4 @@
-console.log('Content Script loaded!');
+// console.log('Content Script loaded!');
 
 /*
  * VARIABLES
@@ -32,7 +32,7 @@ chrome.runtime.sendMessage({ from: source.PAGE });
 chrome.runtime.onMessage.addListener(function (msg) {
     // console.log("Content script received", msg);
     if (msg.from === source.BACKGROUND) {
-        console.log(msg.event, " event received!");
+        // console.log(msg.event, " event received!");
         switch (msg.event) {
             case event.INIT:
                 init(msg.remainingTime, msg.exceededTime);
@@ -48,7 +48,6 @@ chrome.runtime.onMessage.addListener(function (msg) {
                 break;
             case event.START_OVERTIME:
                 blur();
-                console.log(msg.exceededTime);
                 startOvertime(msg.exceededTime);
                 break;
             default:
@@ -663,7 +662,6 @@ function startOvertime(savedTimeOver) {
     clearInterval(overtimeId);
     overtimeId = null;
     overtimeId = setInterval(function () {
-        console.log("overtime:", exceededTime);
         $('#hourglass-displayedTime').addClass('overtime');
         var now = new Date();
         exceededTime = (now - start) / 1000;
