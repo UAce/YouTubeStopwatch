@@ -384,3 +384,21 @@ button.action_buttons:disabled {
         opacity: 20%;
     }
 }
+
+@-webkit-keyframes blink {
+    50% {
+        opacity: 20%;
+    }
+}
+
+@-moz-keyframes blink {
+    50% {
+        opacity: 20%;
+    }
+}
+
+@-o-keyframes blink {
+    50% {
+        opacity: 20%;
+    }
+}
