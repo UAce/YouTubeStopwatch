@@ -53,6 +53,7 @@ function setVarsFromChromeStorage() {
                 }
                 if ("sessions" in changes) {
                     sessions = changes.sessions.newValue;
+                    // console.log("Change:", { ...changes });
                 }
             }
         });
@@ -365,22 +366,24 @@ function startPersistTimes() {
         return;
     }
     persistTimesStarted = true;
+    printEvent("START PERSISTING TIMES");
     persistTimesId = setInterval(function () {
-        var currentSession = sessions.pop();
-        if (!currentSession) {
-            return;
-        }
-        if (countdownStarted && (remainingTime && remainingTime !== 'undefined')) {
-            // console.log("Set countdown:", countdownStarted, remainingTime);
-            currentSession.timeSpent = currentSession.allocatedTime - remainingTime;
-            sessions.push(currentSession);
-            chrome.storage.sync.set({ 'remainingTime': remainingTime, 'sessions': sessions });
-        } else if (overtimeStarted && remainingTime < 0) {
-            // console.log("Set overtime:", overtimeStarted, exceededTime);
-            currentSession.timeSpent = currentSession.allocatedTime + exceededTime;
-            sessions.push(currentSession);
-            chrome.storage.sync.set({ 'exceededTime': exceededTime, 'sessions': sessions });
-        }
+        chrome.storage.sync.get("sessions", function (data) {
+            var allSessions = data.sessions;
+            var n = allSessions.length;
+            if (n === 0) {
+                return;
+            }
+            if (countdownStarted && (remainingTime && remainingTime !== 'undefined')) {
+                // console.log("Set countdown:", countdownStarted, remainingTime);
+                allSessions[n - 1].timeSpent = allSessions[n - 1].allocatedTime - remainingTime;
+                chrome.storage.sync.set({ 'remainingTime': remainingTime, 'sessions': allSessions });
+            } else if (overtimeStarted && remainingTime < 0) {
+                // console.log("Set overtime:", overtimeStarted, exceededTime);
+                allSessions[n - 1].timeSpent = allSessions[n - 1].allocatedTime + exceededTime;
+                chrome.storage.sync.set({ 'exceededTime': exceededTime, 'sessions': allSessions });
+            }
+        });
     }, 2000);
 }
 function stopPersistTimes() {

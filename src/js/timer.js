@@ -228,11 +228,6 @@ function clear_inputs() {
 /*
  * Graph
  */
-function newDate(days) {
-  var d = moment().add(days, 'd').startOf('day');
-  return d;
-}
-
 function generateGraph() {
   chrome.storage.sync.get("sessions", function (data) {
     listOfDates = getListOfDates(data.sessions);
@@ -299,9 +294,11 @@ function generateGraph() {
                 'day': 'MMM DD'
               }
             },
+            data: {
+              max: listOfDates[listOfDates.length - 1],
+              min: listOfDates[0],
+            },
             ticks: {
-              // begin = moment().subtract(1, 'days').startOf('day'), 
-              // end = moment().add(2, 'days').endOf('day') 
               max: maxDate,
               min: minDate,
             }
@@ -394,24 +391,29 @@ function getListOfDates(data) {
   return listOfDates;
 }
 
+function newDate(date, days) {
+  var d = date.add(days, 'd').startOf('day');
+  return d;
+}
+
 function getMaxDate(dates) {
   var n = dates.length;
   var date = moment();
+  // console.log(date);
   if (n > 0) {
     date = dates[n - 1];
   }
-  // console.log(date.add(1, 'days').startOf('day'));
-  return date.add(1, 'days').startOf('day');
+  return newDate(date, 1);
 }
 
 function getMinDate(dates) {
   var n = dates.length;
   var date = moment();
+  // console.log(date);
   if (n > 0) {
     date = dates[0];
   }
-  // console.log(date.subtract(1, 'days').startOf('day'));
-  return date.subtract(1, 'days').startOf('day');
+  return newDate(date, -1);
 }
 
 // var config = {

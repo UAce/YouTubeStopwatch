@@ -33,7 +33,7 @@ chrome.runtime.sendMessage({ from: source.PAGE });
 chrome.runtime.onMessage.addListener(function (msg) {
     // console.log("Content script received", msg);
     if (msg.from === source.BACKGROUND) {
-        // console.log(msg.event, " event received!");
+        console.log(msg.event, " event received!");
         switch (msg.event) {
             case event.INIT:
                 init(msg.remainingTime, msg.exceededTime);
@@ -370,6 +370,9 @@ function showTimeModal() {
                                 allocatedTime: estimatedTime
                             };
                             sessions.push(newSession);
+                            if (sessions.length > 7) {
+                                sessions.shift();
+                            }
                             // console.log("Sessions:", sessions);
                             chrome.storage.sync.set({ 'remainingTime': estimatedTime, 'sessions': sessions }, function () {
                                 chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_COUNTDOWN });
