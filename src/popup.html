@@ -6,6 +6,10 @@
     <title>YouTubeStopwatch</title>
     <link href="css/popup.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="css/Chart.min.css">
+    <script src="js/constants.js"></script>
+    <script src="js/moment-with-locale.min.js"></script>
+    <script src="js/Chart.min.js"></script>
     <script src="js/jquery-3.4.1.min.js"></script>
     <script src="js/jquery-ui.min.js"></script>
 </head>
@@ -17,13 +21,13 @@
     </header>
     <div id="root">
         <div id="popup-home">
-            <button id="showLastArticle">
-                Show last article</button>
-            <img src="img/stats.png" style="height:300px;width:400px;">
+            <!-- <img src="img/stats.png" style="height:300px;width:400px;"> -->
+            <canvas id="myChart" width="600" height="500"></canvas>
             <div id="displayedTime"></div>
         </div>
         <div id="popup-settings" class="toShow">
             <button id="reset" class="toShow">Reset</button>
+            <button id="showArticle" class="toShow">Show article</button>
             <button id="back"><i class="fa fa-chevron-left" style="font-size: 18px;"></i></button>
             <h2 id="settings-title">Settings</h2>
 
@@ -56,7 +60,7 @@
                 <ul id="preset_list"></ul>
             </div>
 
-            <div>
+            <div class="settings-container">
                 <button id="save_changes" class="action_buttons">Save changes</button>
                 <button id="restore_default" class="action_buttons">Restore default</button>
             </div>
@@ -64,9 +68,5 @@
         </div>
     </div>
 </body>
-<script src="js/timer.js">
-</script>
-<script src="js/constants.js">
-</script>
-
+<script src="js/timer.js"></script>
 </html>

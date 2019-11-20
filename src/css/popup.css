@@ -94,7 +94,7 @@ header {
 
 .settings-container {
     padding-bottom: 1rem;
-    padding-left: 0.5rem;
+    padding-left: 1.5rem;
 }
 
 #back {
@@ -120,6 +120,7 @@ header {
     color: white;
     position: absolute;
     right: 5px;
+    top: 75px;
     margin: 4px;
     padding: 4px;
 }
@@ -128,17 +129,19 @@ header {
     cursor: pointer;
 }
 
-#showLastArticle {
+#showArticle {
     background-color: rgb(96, 96, 255);
     border-radius: 2px;
     border: none;
     color: white;
-    float: leftt;
+    position: absolute;
+    right: 5px;
+    top: 102px;
     margin: 4px;
     padding: 4px;
 }
 
-#showLastArticle:hover {
+#showArticle:hover {
     cursor: pointer;
 }
 

@@ -9,6 +9,7 @@ var isPresetAdded = false;
 var countdownStarted = false;
 var overtimeStarted = false;
 var isPageReady = false;
+var sessions;
 var soundOn;
 var preset_times;
 // Sound from https://notificationsounds.com/
@@ -61,7 +62,6 @@ function init(activeRemainingTime, activeTimeOver) {
     chrome.storage.sync.get(['remainingTime', 'exceededTime'], function (data) {
         var remainingTime = activeRemainingTime || data.remainingTime;
         var exceededTime = activeTimeOver || data.exceededTime;
-        // console.log("Init:", remainingTime, exceededTime);
         if (remainingTime < 0) {     // Time limit reached: apply and increase blur every 5min, and start overtime if not started
             chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_OVERTIME });
             blur();
@@ -90,18 +90,23 @@ function reset() {
     $('#hourglass-displayedTime').removeClass('warning');
     $('#hourglass-displayedTime').removeClass('overtime');
     setVarsFromChromeStorage();
-    chrome.runtime.sendMessage({ from: source.PAGE, event: event.INIT });
+    init();
 }
 
 // Set variables from chrome storage
 function setVarsFromChromeStorage() {
-    chrome.storage.sync.get(['soundOn', 'presetTimes'], function (data) {
-        soundOn = typeof (data.soundOn) === 'undefined' ? default_soundOn : data.soundOn;
-        preset_times = data.presetTimes || jQuery.extend(true, {}, default_presets);
+    chrome.storage.sync.get({
+        'soundOn': default_soundOn,
+        'presetTimes': jQuery.extend(true, {}, default_presets),
+        'sessions': []
+    }, function (data) {
+        soundOn = data.soundOn;
+        preset_times = data.presetTimes;
         chrome.storage.sync.set({
             'soundOn': soundOn,
             'presetTimes': preset_times
         });
+        sessions = data.sessions;
     });
     chrome.storage.onChanged.addListener(function (changes, area) {
         if (area == "sync") {
@@ -349,12 +354,27 @@ function showTimeModal() {
                         if (estimatedTime <= 0) {
                             chrome.runtime.sendMessage({ from: source.PAGE, event: event.CLOSE_TAB });
                         } else {
-                            chrome.storage.sync.set({ 'remainingTime': estimatedTime }, function () {
+                            var startDate = new Date();
+                            var currentTimeInSeconds = startDate.getHours() * ONE_HOUR_IN_S + startDate.getMinutes() * ONE_MINUTE_IN_S + startDate.getSeconds();
+                            var timeToMidnight = TWENTY_FOUR_HOURS_IN_S - currentTimeInSeconds;
+                            if (timeToMidnight < estimatedTime) {
+                                estimatedTime = timeToMidnight;
+                                var h = ~~((estimatedTime / 3600));
+                                var min = ~~((estimatedTime / 60) % 60);
+                                var sec = ~~(estimatedTime % 60);
+                                showSnackbar(`Timer has been set to ${h}h ${min}min ${sec}s due to it exceeding the daily time limit (12:00 AM)`);
+                            }
+                            var newSession = {
+                                date: moment()._d.getTime(),
+                                timeSpent: 0,
+                                allocatedTime: estimatedTime
+                            };
+                            sessions.push(newSession);
+                            // console.log("Sessions:", sessions);
+                            chrome.storage.sync.set({ 'remainingTime': estimatedTime, 'sessions': sessions }, function () {
                                 chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_COUNTDOWN });
                                 chrome.runtime.sendMessage({ from: source.PAGE, event: event.INIT_ALL });
                             });
-                            var lastCountdownStartDate = (new Date()).getTime();
-                            chrome.storage.sync.set({ 'lastCountdownStartDate': lastCountdownStartDate });
                             startCountdown(estimatedTime);
                         }
                         $(this).dialog("close");
@@ -396,10 +416,11 @@ function showTimeModal() {
                 modal: true,
                 resizable: true,
                 dialogClass: 'no-close success-dialog',
+                closeOnEscape: false,
                 autoOpen: true,
                 draggable: false,
                 buttons: modalButtons,
-                title: 'Plan and control your time on Youtube<br>Enter estimated time'
+                title: 'Plan and control your time on Youtube<br>Enter estimated time for the day'
             });
         });
         $('#timeModalForm').validate({
@@ -461,12 +482,15 @@ function blur() {
  */
 function injectSnackbar() {
     var snackDiv = document.createElement('div');
-    snackDiv.innerHTML = '<div id="snackbar">You have 5 minutes left...</div>';
+    snackDiv.innerHTML = '<div id="snackbar"></div>';
     var style = document.createElement('style');
     style.innerHTML = `
     #snackbar {
         visibility: hidden;
-        min-width: 250px;
+        width: 250px;
+        min-height: 20px;
+        height: auto;
+        word-break: break-word;
         margin-left: -125px;
         background-color: ${color.RED};
         color: #fff;
@@ -518,9 +542,10 @@ function injectSnackbar() {
     document.body.appendChild(snackDiv);
 }
 
-function showSnackbar() {
+function showSnackbar(text = FIVE_MINS_LEFT) {
     soundOn ? snackSound.play() : null;
     var snackbar = document.getElementById("snackbar");
+    snackbar.innerText = text;
     snackbar.className = "show";
 
     // Auto hide after 1min

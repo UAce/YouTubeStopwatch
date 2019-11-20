@@ -5,12 +5,17 @@ let bg = chrome.extension.getBackgroundPage(); // instance of background script
  */
 var hours, minutes, seconds, remainingTime;
 var exceededTime, exceededHours, exceededMinutes, exceededSeconds;
+// console.log("Background remaining time", bg.remainingTime);
 if (bg.remainingTime === 'undefined') {
   $('#displayedTime').html('Timer has not been set');
 }
 var preset_list;
-
-
+var chart;
+var listOfDates;
+var listOfAllocatedTime;
+var listOfTimeSpent;
+var maxDate;
+var minDate;
 /*
  * COUNTDOWN/OVERTIME
  */
@@ -26,9 +31,7 @@ var intervalId = setInterval(function () {
     $('#displayedTime').addClass('paused');
   }
   remainingTime = Math.floor(bg.remainingTime);
-  if (remainingTime === 0 && $('#displayedTime').html() !== "Time's up!!") {
-    $('#displayedTime').html("Time's up!!");
-  } else if (remainingTime > 0) {
+  if (remainingTime > 0) {
     // Countdown
     hours = format_undefined(bg.remainingHours);
     minutes = format_undefined(bg.remainingMinutes);
@@ -51,6 +54,7 @@ var intervalId = setInterval(function () {
 /*
  * POPUP HOME
  */
+generateGraph();
 // Show settings
 $('#settings').click(function () {
   $('#popup-home').hide();
@@ -58,7 +62,7 @@ $('#settings').click(function () {
 });
 
 // Show last article
-$('#showLastArticle').click(function () {
+$('#showArticle').click(function () {
   chrome.runtime.sendMessage({ from: source.POPUP, event: event.SHOW_ARTICLE });
 });
 
@@ -67,10 +71,9 @@ $('#showLastArticle').click(function () {
  * SETTINGS
  */
 function initSettings() {
-  chrome.storage.sync.get(['soundOn', 'presetTimes'], function (data) {
-    var soundOn = typeof (data.soundOn) === 'undefined' ? default_soundOn : data.soundOn;
-    $("#soundOn").prop('checked', soundOn);
-    preset_list = data.presetTimes || jQuery.extend(true, {}, default_presets);
+  chrome.storage.sync.get({ 'soundOn': default_soundOn, 'presetTimes': jQuery.extend(true, {}, default_presets) }, function (data) {
+    $("#soundOn").prop('checked', data.soundOn);
+    preset_list = data.presetTimes;
     populatePresets();
     showPresets();
   });
@@ -103,11 +106,14 @@ $('#reset').click(function () {
   chrome.storage.sync.set({
     'remainingTime': 'undefined',
     'exceededTime': 'undefined',
-    'blur_value': default_blurValue
+    'blur_value': default_blurValue,
+    'sessions': []
   });
   $('#displayedTime').html('Timer has not been set');
+  $('#displayedTime').removeClass('paused');
   $('#preset_list').html('');
   initSettings();
+  resetChart();
 });
 
 // Show/Hide reset button on 'Shift + R'
@@ -118,6 +124,8 @@ document.addEventListener('keydown', function (event) {
   var key = event.key || event.keyCode;
   if (event.shiftKey && (key === "R" || key === "KeyR" || key === 82)) {
     $('#reset').is(":hidden") ? $('#reset').show() : $('#reset').hide();
+  } else if (event.shiftKey && (key === "A" || key === "KeyA" || key === 65)) {
+    $('#showArticle').is(":hidden") ? $('#showArticle').show() : $('#showArticle').hide();
   }
 });
 
@@ -216,12 +224,272 @@ function clear_inputs() {
   $('#preset_minutes_input').val('');
 }
 
+
+/*
+ * Graph
+ */
+function newDate(days) {
+  var d = moment().add(days, 'd').startOf('day');
+  return d;
+}
+
+function generateGraph() {
+  chrome.storage.sync.get("sessions", function (data) {
+    listOfDates = getListOfDates(data.sessions);
+    listOfAllocatedTime = getListOfAllocatedTime(data.sessions);
+    listOfTimeSpent = getListOfTimeSpent(data.sessions);
+    maxDate = getMaxDate(listOfDates);
+    minDate = getMinDate(listOfDates);
+    config = {
+      type: 'bar',
+      data: {
+        labels: listOfDates,
+        datasets: [{
+          label: "Time Spent on YouTube",
+          data: listOfTimeSpent,
+          backgroundColor: 'rgba(0, 153, 255, 1)',
+          borderColor: 'rgba(0, 153, 255, 1)',
+          order: 2,
+          fill: false,
+          borderWidth: 2,
+          pointStyle: 'rect'
+        },
+        {
+          label: "Allocated Time",
+          type: 'bar',
+          data: listOfAllocatedTime,
+          backgroundColor: 'transparent',
+          borderColor: 'rgba(204, 0, 0,1)',
+          order: 1,
+          fill: false,
+          borderWidth: {
+            top: 3,
+            right: 0,
+            bottom: 0,
+            left: 0
+          },
+          pointStyle: 'line'
+        }]
+      },
+      options: {
+        responsive: true,
+        tooltips: {
+          mode: 'index',
+          intersect: false,
+          callbacks: {
+            label: function (tooltipItem, data) {
+              return data.datasets[tooltipItem.datasetIndex].label + ': ' + seconds_to_hh_mm_ss(tooltipItem.yLabel);
+            }
+          }
+        },
+        legend: {
+          labels: {
+            usePointStyle: true
+          }
+        },
+        scales: {
+          xAxes: [{
+            type: 'time',
+            stacked: true,
+            time: {
+              unit: 'day',
+              tooltipFormat: 'll',
+              unitStepSize: 1,
+              displayFormats: {
+                'day': 'MMM DD'
+              }
+            },
+            ticks: {
+              // begin = moment().subtract(1, 'days').startOf('day'), 
+              // end = moment().add(2, 'days').endOf('day') 
+              max: maxDate,
+              min: minDate,
+            }
+          }],
+          yAxes: [{
+            ticks: {
+              userCallback: function (v) { return seconds_to_hh_mm_ss(v) },
+              stepSize: 30 * 60,
+              beginAtZero: true,
+            },
+
+          }]
+        },
+      }
+    };
+    var ctx = document.getElementById("myChart").getContext("2d");
+    chart = new Chart(ctx, config);
+    chart.update();
+  });
+}
+
+// Mutate timeSpent of last (current) session
+function updateChartTimeSpent(time) {
+  var data = chart.data.datasets[0].data;
+  chart.data.datasets[0].data[data.length - 1] = time;
+  chart.update();
+}
+
+function resetChart() {
+  chart.data.datasets.forEach((dataset) => {
+    dataset.data = [];
+  });
+  chart.options.scales.xAxes.ticks = {
+    max: maxDate,
+    min: minDate,
+  };
+  chart.update();
+}
+
+function seconds_to_hh_mm_ss(time) {
+  var h = ~~((time / 3600));
+  var min = ~~((time / 60) % 60);
+  var sec = ~~(time % 60);
+  return `${format_zero(h)}:${format_zero(min)}:${format_zero(sec)}`;
+}
+
+// Update Chart every 5s if there are active youtube pages and there is at least one active session
+setInterval(function () {
+  var sessions = bg.sessions;
+  if (bg.active_youtube_tabs.length > 0 && sessions.length > 0 && chart) {
+    updateChartTimeSpent(sessions[sessions.length - 1].timeSpent);
+  }
+}, 5000);
+
+
 /*
  * HELPERS
  */
 function format_undefined(num) {
   return num === 'undefined' ? '--' : num;
 }
+
 function format_zero(num) {
   return num < 10 ? "0" + num : num;
 }
+
+function getListOfAllocatedTime(data) {
+  var listOfAllocatedTime = [];
+  for (var i = 0; i < data.length; i++) {
+    listOfAllocatedTime.push(data[i].allocatedTime);
+  }
+  return listOfAllocatedTime;
+}
+
+function getListOfTimeSpent(data) {
+  var listOfTimeSpent = [];
+  for (var i = 0; i < data.length; i++) {
+    listOfTimeSpent.push(data[i].timeSpent);
+  }
+  return listOfTimeSpent;
+}
+
+function getListOfDates(data) {
+  var listOfDates = [];
+  for (var i = 0; i < data.length; i++) {
+    var date = data[i].date;
+    // console.log(date, moment(date));
+    listOfDates.push(moment(date).startOf('day'));
+  }
+  return listOfDates;
+}
+
+function getMaxDate(dates) {
+  var n = dates.length;
+  var date = moment();
+  if (n > 0) {
+    date = dates[n - 1];
+  }
+  // console.log(date.add(1, 'days').startOf('day'));
+  return date.add(1, 'days').startOf('day');
+}
+
+function getMinDate(dates) {
+  var n = dates.length;
+  var date = moment();
+  if (n > 0) {
+    date = dates[0];
+  }
+  // console.log(date.subtract(1, 'days').startOf('day'));
+  return date.subtract(1, 'days').startOf('day');
+}
+
+// var config = {
+//   type: 'bar',
+//   data: {
+//     labels: [newDate(-40), newDate(-39), newDate(-38), newDate(-37), newDate(-36), newDate(-35), newDate(-34)],
+//     datasets: [{
+//       label: "Time Spent on YouTube",
+//       data: [13, 23, 14, 15, 11, 14, 22],
+//       backgroundColor: 'rgba(0, 153, 255, 1)',
+//       borderColor: 'rgba(0, 153, 255, 1)',
+//       order: 2,
+//       fill: false,
+//       borderWidth: 2,
+//       pointStyle: 'rect'
+//     },
+//     {
+//       label: "Allocated Time",
+//       type: 'bar',
+//       data: [10, 19, 20, 14, 10, 14, 23],
+//       backgroundColor: 'transparent',
+//       borderColor: 'rgba(204, 0, 0,1)',
+//       order: 1,
+//       fill: false,
+//       borderWidth: {
+//         top: 3,
+//         right: 0,
+//         bottom: 0,
+//         left: 0
+//       },
+//       pointStyle: 'line'
+//     }]
+//   },
+//   options: {
+//     responsive: true,
+//     tooltips: {
+//       mode: 'index',
+//       intersect: false,
+//       callbacks: {
+//         label: function (tooltipItem, data) {
+//           return data.datasets[tooltipItem.datasetIndex].label + ': ' + seconds_to_hh_mm_ss(tooltipItem.yLabel);
+//         }
+//       }
+//     },
+//     legend: {
+//       labels: {
+//         usePointStyle: true
+//       }
+//     },
+//     scales: {
+//       xAxes: [{
+//         type: 'time',
+//         stacked: true,
+//         time: {
+//           unit: 'day',
+//           tooltipFormat: 'll',
+//           unitStepSize: 1,
+//           displayFormats: {
+//             'day': 'MMM DD'
+//           }
+//         },
+//         ticks: {
+//           // begin = moment().subtract(1, 'days').startOf('day'),
+//           // end = moment().add(2, 'days').endOf('day')
+//           max: newDate(-33),
+//           min: newDate(-41),
+//         }
+//       }],
+//       yAxes: [{
+//         ticks: {
+//           userCallback: function (v) { return seconds_to_hh_mm_ss(v) },
+//           stepSize: 30 * 60,
+//           beginAtZero: true,
+//         },
+
+//       }]
+//     },
+//   }
+// };
+// var ctx = document.getElementById("myChart").getContext("2d");
+// new Chart(ctx, config);

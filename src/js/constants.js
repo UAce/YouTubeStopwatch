@@ -39,3 +39,5 @@ const ONE_HOUR_IN_S = 3600;
 const MAX_BLUR_VAL = 20;
 const MAX_HOURS = 23;
 const MAX_MINUTES = 59;
+const TWENTY_FOUR_HOURS_IN_S = 86400;
+const FIVE_MINS_LEFT = 'You have 5 minutes left...';

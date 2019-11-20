@@ -7,7 +7,8 @@ chrome.runtime.onInstalled.addListener(function () {
         'exceededTime': 'undefined',
         'soundOn': default_soundOn,
         'presetTimes': jQuery.extend(true, {}, default_presets),
-        'blur_value': default_blurValue
+        'blur_value': default_blurValue,
+        'session': []
     });
     // console.log("Installed");
 });
@@ -16,22 +17,25 @@ chrome.runtime.onInstalled.addListener(function () {
  * VARIABLES
  */
 var active_youtube_tabs = [];
+var persistTimesId;
+var persistTimesStarted = false;
 
 var countdownStarted = false;
 var countdownId, remainingTime, remainingHours, remainingMinutes, remainingSeconds;
-remainingHours = remainingMinutes = remainingSeconds = 'undefined';
+remainingTime = remainingHours = remainingMinutes = remainingSeconds = 'undefined';
 
 var overtimeStarted = false;
 var overtimeId, exceededTime, exceededHours, exceededMinutes, exceededSeconds;
-exceededHours = exceededMinutes = exceededSeconds = 'undefined';
+exceededTime = exceededHours = exceededMinutes = exceededSeconds = 'undefined';
 
 // Sound from https://notificationsounds.com/
 var timesUpSound = new Audio(chrome.runtime.getURL("audio/munchausen.mp3"));
 timesUpSound.loop = false;
 timesUpSound.onended = countdownEndAction;
 var soundOn;
+var sessions;
 function setVarsFromChromeStorage() {
-    chrome.storage.sync.get(['soundOn', 'remainingTime', 'exceededTime'], function (data) {
+    chrome.storage.sync.get({ 'soundOn': default_soundOn, 'remainingTime': 'undefined', 'exceededTime': 'undefined', 'sessions': [] }, function (data) {
         remainingTime = data.remainingTime;
         if (remainingTime > 0) {
             setRemainingTimes();
@@ -40,10 +44,16 @@ function setVarsFromChromeStorage() {
         if (exceededTime > 0) {
             setExceededTimes();
         }
-        soundOn = typeof (data.soundOn) === 'undefined' ? default_soundOn : data.soundOn;
+        soundOn = data.soundOn;
+        sessions = data.sessions;
         chrome.storage.onChanged.addListener(function (changes, area) {
-            if (area == "sync" && "soundOn" in changes) {
-                soundOn = changes.soundOn.newValue;
+            if (area == "sync") {
+                if ("soundOn" in changes) {
+                    soundOn = changes.soundOn.newValue;
+                }
+                if ("sessions" in changes) {
+                    sessions = changes.sessions.newValue;
+                }
             }
         });
     });
@@ -54,7 +64,7 @@ setVarsFromChromeStorage();
  * MAIN - HANDLES EVENTS FROM YOUTUBE AND POPUP PAGE
  */
 function initBackground() {
-    setBadge('');
+    setBadge();
     chrome.runtime.onMessage.addListener(function (msg, sender) {
         var tabId = sender.tab ? sender.tab.id : null;
         // console.log("Received from", tabId, msg);
@@ -69,14 +79,12 @@ function initBackground() {
         }
         switch (msg.event) {
             case event.START_COUNTDOWN:
-                if (!countdownStarted) {
-                    startCountdown();
-                }
+                startCountdown();
+                startPersistTimes();
                 break;
             case event.START_OVERTIME:
-                if (!overtimeStarted) {
-                    startOvertime();
-                }
+                startOvertime();
+                startPersistTimes();
                 break;
             case event.CLOSE_TAB:
                 tabId && chrome.tabs.remove(tabId);
@@ -117,14 +125,11 @@ function sendInit(tabId) {
 function reset() {
     remainingTime = remainingHours = remainingMinutes = remainingSeconds = 'undefined';
     exceededTime = exceededHours = exceededMinutes = exceededSeconds = 'undefined';
-    if (countdownStarted) {
-        stopCountdown();
-    }
-    if (overtimeStarted) {
-        stopOvertime();
-    }
+    stopCountdown();
+    stopOvertime();
+    stopPersistTimes();
     setVarsFromChromeStorage();
-    setBadge('');
+    setBadge();
 }
 
 // Removes specific tab from active youtube tabs
@@ -133,12 +138,9 @@ function removeYoutubeTab(tabId) {
     active_youtube_tabs.splice(idx, 1);
 
     if (active_youtube_tabs.length === 0) {
-        if (countdownStarted) {
-            stopCountdown();
-        }
-        if (overtimeStarted) {
-            stopOvertime();
-        }
+        stopCountdown();
+        stopOvertime();
+        stopPersistTimes();
     }
     // console.log("Youtube tab closed", tabId, active_youtube_tabs);
 }
@@ -226,10 +228,13 @@ function countdown(seconds) {
 }
 
 function startCountdown() {
+    if (countdownStarted) {
+        return;
+    }
     printEvent('START COUNTDOWN');
     chrome.storage.sync.get(['remainingTime'], function (data) {
         countdown(data.remainingTime);
-        // countdown(3);
+        // countdown(302);
         setBadge(status.STARTED);
         countdownStarted = true;
         active_youtube_tabs.forEach(function (id) {
@@ -239,6 +244,9 @@ function startCountdown() {
 }
 
 function stopCountdown() {
+    if (!countdownStarted) {
+        return;
+    }
     printEvent('STOP COUNTDOWN');
     clearInterval(countdownId);
     countdownStarted = false;
@@ -256,6 +264,7 @@ function countdownEndAction() {
             // Close all YouTube tabs
             chrome.tabs.remove(id);
         });
+        setBadge(status.PAUSED);
     } else {
         active_youtube_tabs.forEach(function (id) {
             chrome.tabs.sendMessage(id, { from: source.BACKGROUND, event: event.START_OVERTIME });
@@ -288,6 +297,9 @@ function overtime(savedTimeOver) {
 }
 
 function startOvertime() {
+    if (overtimeStarted) {
+        return;
+    }
     printEvent('START OVERTIME');
     chrome.storage.sync.get(['exceededTime'], function (data) {
         overtime(data.exceededTime);
@@ -300,6 +312,9 @@ function startOvertime() {
 }
 
 function stopOvertime() {
+    if (!overtimeStarted) {
+        return;
+    }
     printEvent('STOP OVERTIME', overtimeId);
     clearInterval(overtimeId);
     overtimeStarted = false;
@@ -343,18 +358,38 @@ function setExceededTimes() {
     exceededMinutes = ~~((exceededTime / 60) % 60);
     exceededSeconds = ~~(exceededTime % 60);
 }
-// Save time every 5s
-setInterval(function () {
-    // console.log("Set countdown:", countdownStarted, remainingTime);
-    if (countdownStarted) {
-        chrome.storage.sync.set({ 'remainingTime': remainingTime });
-    }
-    // console.log("Set overtime:", overtimeStarted, exceededTime);
-    if (overtimeStarted) {
-        chrome.storage.sync.set({ 'exceededTime': exceededTime });
-    }
-}, 2000);
 
+// Save times and update current session every 2s
+function startPersistTimes() {
+    if (persistTimesStarted) {
+        return;
+    }
+    persistTimesStarted = true;
+    persistTimesId = setInterval(function () {
+        var currentSession = sessions.pop();
+        if (!currentSession) {
+            return;
+        }
+        if (countdownStarted && (remainingTime && remainingTime !== 'undefined')) {
+            // console.log("Set countdown:", countdownStarted, remainingTime);
+            currentSession.timeSpent = currentSession.allocatedTime - remainingTime;
+            sessions.push(currentSession);
+            chrome.storage.sync.set({ 'remainingTime': remainingTime, 'sessions': sessions });
+        } else if (overtimeStarted && remainingTime < 0) {
+            // console.log("Set overtime:", overtimeStarted, exceededTime);
+            currentSession.timeSpent = currentSession.allocatedTime + exceededTime;
+            sessions.push(currentSession);
+            chrome.storage.sync.set({ 'exceededTime': exceededTime, 'sessions': sessions });
+        }
+    }, 2000);
+}
+function stopPersistTimes() {
+    if (!persistTimesStarted) {
+        return;
+    }
+    persistTimesStarted = false;
+    clearInterval(persistTimesId);
+}
 
 /*
  * DEBUGGING
