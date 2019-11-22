@@ -2,13 +2,21 @@
 
 // console.log('background script loaded!');
 chrome.runtime.onInstalled.addListener(function () {
+    // Fake sample data for testing purposes
+    // var sessions = []
+    // var newSession = {
+    //     date: moment().add(-1, 'd')._d.getTime(),
+    //     timeSpent: 2500,
+    //     allocatedTime: 3600
+    // };
+    // sessions.push(newSession);
     chrome.storage.sync.set({
         'remainingTime': 'undefined',
         'exceededTime': 'undefined',
         'soundOn': default_soundOn,
         'presetTimes': jQuery.extend(true, {}, default_presets),
         'blur_value': default_blurValue,
-        'session': []
+        'sessions': sessions
     });
     // console.log("Installed");
 });
@@ -19,6 +27,9 @@ chrome.runtime.onInstalled.addListener(function () {
 var active_youtube_tabs = [];
 var persistTimesId;
 var persistTimesStarted = false;
+
+var checkId;
+var checkStarted = false;
 
 var countdownStarted = false;
 var countdownId, remainingTime, remainingHours, remainingMinutes, remainingSeconds;
@@ -65,6 +76,7 @@ setVarsFromChromeStorage();
  * MAIN - HANDLES EVENTS FROM YOUTUBE AND POPUP PAGE
  */
 function initBackground() {
+    checkSessionExpired();
     setBadge();
     chrome.runtime.onMessage.addListener(function (msg, sender) {
         var tabId = sender.tab ? sender.tab.id : null;
@@ -126,9 +138,7 @@ function sendInit(tabId) {
 function reset() {
     remainingTime = remainingHours = remainingMinutes = remainingSeconds = 'undefined';
     exceededTime = exceededHours = exceededMinutes = exceededSeconds = 'undefined';
-    stopCountdown();
-    stopOvertime();
-    stopPersistTimes();
+    stopAll();
     setVarsFromChromeStorage();
     setBadge();
 }
@@ -139,9 +149,7 @@ function removeYoutubeTab(tabId) {
     active_youtube_tabs.splice(idx, 1);
 
     if (active_youtube_tabs.length === 0) {
-        stopCountdown();
-        stopOvertime();
-        stopPersistTimes();
+        stopAll();
     }
     // console.log("Youtube tab closed", tabId, active_youtube_tabs);
 }
@@ -245,18 +253,17 @@ function startCountdown() {
 }
 
 function stopCountdown() {
-    if (!countdownStarted) {
-        return;
+    if (countdownStarted) {
+        printEvent('STOP COUNTDOWN');
+        clearInterval(countdownId);
+        countdownStarted = false;
+        var state = status.PAUSED;
+        if (remainingTime < 0) {
+            state = status.OVER;
+        }
+        chrome.storage.sync.set({ 'remainingTime': remainingTime });
+        setBadge(state);
     }
-    printEvent('STOP COUNTDOWN');
-    clearInterval(countdownId);
-    countdownStarted = false;
-    var state = status.PAUSED;
-    if (remainingTime < 0) {
-        state = status.OVER;
-    }
-    chrome.storage.sync.set({ 'remainingTime': remainingTime });
-    setBadge(state);
 }
 
 function countdownEndAction() {
@@ -313,14 +320,13 @@ function startOvertime() {
 }
 
 function stopOvertime() {
-    if (!overtimeStarted) {
-        return;
+    if (overtimeStarted) {
+        printEvent('STOP OVERTIME', overtimeId);
+        clearInterval(overtimeId);
+        overtimeStarted = false;
+        chrome.storage.sync.set({ 'exceededTime': exceededTime });
+        setBadge(status.PAUSED);
     }
-    printEvent('STOP OVERTIME', overtimeId);
-    clearInterval(overtimeId);
-    overtimeStarted = false;
-    chrome.storage.sync.set({ 'exceededTime': exceededTime });
-    setBadge(status.PAUSED);
 }
 
 
@@ -360,11 +366,18 @@ function setExceededTimes() {
     exceededSeconds = ~~(exceededTime % 60);
 }
 
+function stopAll() {
+    stopCountdown();
+    stopOvertime();
+    stopPersistTimes();
+}
+
 // Save times and update current session every 2s
 function startPersistTimes() {
     if (persistTimesStarted) {
         return;
     }
+    checkSessionExpired();
     persistTimesStarted = true;
     printEvent("START PERSISTING TIMES");
     persistTimesId = setInterval(function () {
@@ -387,12 +400,53 @@ function startPersistTimes() {
     }, 2000);
 }
 function stopPersistTimes() {
-    if (!persistTimesStarted) {
+    if (persistTimesStarted) {
+        persistTimesStarted = false;
+        clearInterval(persistTimesId);
+    }
+}
+
+
+/*
+ * Check session expired
+ */
+function checkSessionExpired() {
+    if (checkStarted) {
         return;
     }
-    persistTimesStarted = false;
-    clearInterval(persistTimesId);
+    checkStarted = true;
+    printEvent("Check Session Expired");
+    checkId = setInterval(function () {
+        chrome.storage.sync.get("sessions", function (data) {
+            var allSessions = data.sessions;
+            var n = allSessions.length;
+            if (n === 0) {
+                return;
+            }
+            var lastSession = allSessions[n - 1];
+            var today = moment().startOf('day')._d.getTime();
+            // console.log("check", lastSession, today);
+            if (lastSession.date != today) {
+                stopAll();
+                chrome.storage.sync.set({ 'remainingTime': 'undefined', 'exceededTime': 'undefined' }, function () {
+                    remainingTime = exceededTime = 'undefined';
+                    active_youtube_tabs.forEach(function (id) {
+                        sendInit(id);
+                    });
+                    stopCheckExpired();
+                });
+            }
+        });
+    }, 5000);
 }
+function stopCheckExpired() {
+    printEvent("Stop Check Session Expired");
+    if (checkStarted) {
+        clearInterval(checkId);
+        checkStarted = false;
+    }
+}
+
 
 /*
  * DEBUGGING

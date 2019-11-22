@@ -229,7 +229,7 @@ function clear_inputs() {
  * Graph
  */
 function generateGraph() {
-  chrome.storage.sync.get("sessions", function (data) {
+  chrome.storage.sync.get({ "sessions": [] }, function (data) {
     listOfDates = getListOfDates(data.sessions);
     listOfAllocatedTime = getListOfAllocatedTime(data.sessions);
     listOfTimeSpent = getListOfTimeSpent(data.sessions);
@@ -316,7 +316,6 @@ function generateGraph() {
     };
     var ctx = document.getElementById("myChart").getContext("2d");
     chart = new Chart(ctx, config);
-    chart.update();
   });
 }
 
@@ -385,20 +384,25 @@ function getListOfDates(data) {
   var listOfDates = [];
   for (var i = 0; i < data.length; i++) {
     var date = data[i].date;
-    // console.log(date, moment(date));
-    listOfDates.push(moment(date).startOf('day'));
+    listOfDates.push(moment(date));
   }
   return listOfDates;
 }
 
+function newDate2(days) {
+  var d = moment().add(days, 'd').startOf('day');
+  return d;
+}
+
 function newDate(date, days) {
-  var d = date.add(days, 'd').startOf('day');
+  // console.log("new date:", date);
+  var d = moment(date).add(days, 'd').startOf('day');
   return d;
 }
 
 function getMaxDate(dates) {
   var n = dates.length;
-  var date = moment();
+  var date = moment()._d.getTime();
   // console.log(date);
   if (n > 0) {
     date = dates[n - 1];
@@ -408,90 +412,10 @@ function getMaxDate(dates) {
 
 function getMinDate(dates) {
   var n = dates.length;
-  var date = moment();
+  var date = moment()._d.getTime();
   // console.log(date);
   if (n > 0) {
     date = dates[0];
   }
   return newDate(date, -1);
 }
-
-// var config = {
-//   type: 'bar',
-//   data: {
-//     labels: [newDate(-40), newDate(-39), newDate(-38), newDate(-37), newDate(-36), newDate(-35), newDate(-34)],
-//     datasets: [{
-//       label: "Time Spent on YouTube",
-//       data: [13, 23, 14, 15, 11, 14, 22],
-//       backgroundColor: 'rgba(0, 153, 255, 1)',
-//       borderColor: 'rgba(0, 153, 255, 1)',
-//       order: 2,
-//       fill: false,
-//       borderWidth: 2,
-//       pointStyle: 'rect'
-//     },
-//     {
-//       label: "Allocated Time",
-//       type: 'bar',
-//       data: [10, 19, 20, 14, 10, 14, 23],
-//       backgroundColor: 'transparent',
-//       borderColor: 'rgba(204, 0, 0,1)',
-//       order: 1,
-//       fill: false,
-//       borderWidth: {
-//         top: 3,
-//         right: 0,
-//         bottom: 0,
-//         left: 0
-//       },
-//       pointStyle: 'line'
-//     }]
-//   },
-//   options: {
-//     responsive: true,
-//     tooltips: {
-//       mode: 'index',
-//       intersect: false,
-//       callbacks: {
-//         label: function (tooltipItem, data) {
-//           return data.datasets[tooltipItem.datasetIndex].label + ': ' + seconds_to_hh_mm_ss(tooltipItem.yLabel);
-//         }
-//       }
-//     },
-//     legend: {
-//       labels: {
-//         usePointStyle: true
-//       }
-//     },
-//     scales: {
-//       xAxes: [{
-//         type: 'time',
-//         stacked: true,
-//         time: {
-//           unit: 'day',
-//           tooltipFormat: 'll',
-//           unitStepSize: 1,
-//           displayFormats: {
-//             'day': 'MMM DD'
-//           }
-//         },
-//         ticks: {
-//           // begin = moment().subtract(1, 'days').startOf('day'),
-//           // end = moment().add(2, 'days').endOf('day')
-//           max: newDate(-33),
-//           min: newDate(-41),
-//         }
-//       }],
-//       yAxes: [{
-//         ticks: {
-//           userCallback: function (v) { return seconds_to_hh_mm_ss(v) },
-//           stepSize: 30 * 60,
-//           beginAtZero: true,
-//         },
-
-//       }]
-//     },
-//   }
-// };
-// var ctx = document.getElementById("myChart").getContext("2d");
-// new Chart(ctx, config);

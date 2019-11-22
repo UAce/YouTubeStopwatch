@@ -33,7 +33,7 @@ chrome.runtime.sendMessage({ from: source.PAGE });
 chrome.runtime.onMessage.addListener(function (msg) {
     // console.log("Content script received", msg);
     if (msg.from === source.BACKGROUND) {
-        console.log(msg.event, " event received!");
+        // console.log(msg.event, " event received!");
         switch (msg.event) {
             case event.INIT:
                 init(msg.remainingTime, msg.exceededTime);
@@ -365,7 +365,7 @@ function showTimeModal() {
                                 showSnackbar(`Timer has been set to ${h}h ${min}min ${sec}s due to it exceeding the daily time limit (12:00 AM)`);
                             }
                             var newSession = {
-                                date: moment()._d.getTime(),
+                                date: moment().startOf('day')._d.getTime(),
                                 timeSpent: 0,
                                 allocatedTime: estimatedTime
                             };
