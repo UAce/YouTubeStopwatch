@@ -428,12 +428,13 @@ function checkSessionExpired() {
             // console.log("check", lastSession, today);
             if (lastSession.date != today) {
                 stopAll();
-                chrome.storage.sync.set({ 'remainingTime': 'undefined', 'exceededTime': 'undefined' }, function () {
+                chrome.storage.sync.set({ 'remainingTime': 'undefined', 'exceededTime': 'undefined', 'blur_value': default_blurValue }, function () {
                     remainingTime = exceededTime = 'undefined';
                     active_youtube_tabs.forEach(function (id) {
                         sendInit(id);
                     });
                     stopCheckExpired();
+                    setBadge();
                 });
             }
         });

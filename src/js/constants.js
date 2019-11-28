@@ -31,7 +31,7 @@ const event = {
 };
 const default_presets = { "30min": 30, "1h": 60, "2h": 120, "12h": 720 };
 const default_soundOn = true;
-const default_blurValue = 3;
+const default_blurValue = 2;
 const ONE_MINUTE_IN_MS = 60000;
 const ONE_MINUTE_IN_S = 60;
 const FIVE_MINUTES_IN_S = 300;

@@ -106,14 +106,12 @@ $('#reset').click(function () {
   chrome.storage.sync.set({
     'remainingTime': 'undefined',
     'exceededTime': 'undefined',
-    'blur_value': default_blurValue,
-    'sessions': []
+    'blur_value': default_blurValue
   });
   $('#displayedTime').html('Timer has not been set');
   $('#displayedTime').removeClass('paused');
   $('#preset_list').html('');
   initSettings();
-  resetChart();
 });
 
 // Show/Hide reset button on 'Shift + R'

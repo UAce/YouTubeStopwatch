@@ -115,8 +115,10 @@ function setVarsFromChromeStorage() {
             }
             if ("presetTimes" in changes) {
                 preset_times = changes.presetTimes.newValue;
-                removeModal();
-                showTimeModal();
+                if (typeof (remainingTime) === "undefined" || remainingTime === "undefined") {
+                    removeModal();
+                    showTimeModal();
+                }
             }
         }
     });
