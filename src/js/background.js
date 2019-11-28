@@ -2,21 +2,13 @@
 
 // console.log('background script loaded!');
 chrome.runtime.onInstalled.addListener(function () {
-    // Fake sample data for testing purposes
-    // var sessions = []
-    // var newSession = {
-    //     date: moment().add(-1, 'd')._d.getTime(),
-    //     timeSpent: 2500,
-    //     allocatedTime: 3600
-    // };
-    // sessions.push(newSession);
     chrome.storage.sync.set({
         'remainingTime': 'undefined',
         'exceededTime': 'undefined',
         'soundOn': default_soundOn,
         'presetTimes': jQuery.extend(true, {}, default_presets),
         'blur_value': default_blurValue,
-        'sessions': sessions
+        'sessions': []
     });
     // console.log("Installed");
 });

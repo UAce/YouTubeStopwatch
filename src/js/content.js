@@ -371,11 +371,7 @@ function showTimeModal() {
                                 timeSpent: 0,
                                 allocatedTime: estimatedTime
                             };
-                            sessions.push(newSession);
-                            if (sessions.length > 7) {
-                                sessions.shift();
-                            }
-                            // console.log("Sessions:", sessions);
+                            validateSession(newSession);
                             chrome.storage.sync.set({ 'remainingTime': estimatedTime, 'sessions': sessions }, function () {
                                 chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_COUNTDOWN });
                                 chrome.runtime.sendMessage({ from: source.PAGE, event: event.INIT_ALL });
@@ -711,4 +707,18 @@ function startOvertime(savedTimeOver) {
  */
 function format(num) {
     return num < 10 ? "0" + num : num;
+}
+
+function validateSession(newSession) {
+    for (var i = 0; i < sessions.length;) {
+        if (sessions[i].date === newSession.date) {
+            sessions.splice(i, 1);
+        } else {
+            i++;
+        }
+    }
+    sessions.push(newSession);
+    if (sessions.length > 7) {
+        sessions.shift();
+    }
 }

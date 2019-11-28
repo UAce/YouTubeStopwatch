@@ -114,7 +114,31 @@ $('#reset').click(function () {
   initSettings();
 });
 
-// Show/Hide reset button on 'Shift + R'
+// Clear cache (EXPERIMENTAL)
+$('#clearCache').click(function () {
+  chrome.storage.sync.clear(function () {
+    chrome.storage.sync.set({
+      'remainingTime': 'undefined',
+      'exceededTime': 'undefined',
+      'soundOn': default_soundOn,
+      'presetTimes': jQuery.extend(true, {}, default_presets),
+      'blur_value': default_blurValue,
+      'sessions': []
+    }, function () {
+      $('#preset_list').html('');
+      initSettings();
+      resetChart();
+      chrome.runtime.sendMessage({ from: source.POPUP, event: event.RESET });
+    });
+  });
+});
+
+/*
+ * Show/Hide reset button: 'Shift + R'
+ * Show/Hide show article: 'Shift + A'
+ * Show/Hide clear cache: 'Shift + C'
+ */
+showAll = true;
 document.addEventListener('keydown', function (event) {
   if (event.defaultPrevented || $('#popup-settings').is(":hidden")) {
     return;
@@ -122,8 +146,21 @@ document.addEventListener('keydown', function (event) {
   var key = event.key || event.keyCode;
   if (event.shiftKey && (key === "R" || key === "KeyR" || key === 82)) {
     $('#reset').is(":hidden") ? $('#reset').show() : $('#reset').hide();
-  } else if (event.shiftKey && (key === "A" || key === "KeyA" || key === 65)) {
+  } else if (event.shiftKey && (key === "S" || key === "KeyS" || key === 83)) {
     $('#showArticle').is(":hidden") ? $('#showArticle').show() : $('#showArticle').hide();
+  } else if (event.shiftKey && (key === "C" || key === "KeyC" || key === 67)) {
+    $('#clearCache').is(":hidden") ? $('#clearCache').show() : $('#clearCache').hide();
+  } else if (event.shiftKey && (key === "A" || key === "KeyA" || key === 65)) {
+    if (showAll) {
+      $('#reset').show();
+      $('#showArticle').show();
+      $('#clearCache').show();
+    } else {
+      $('#reset').hide();
+      $('#showArticle').hide();
+      $('#clearCache').hide();
+    }
+    showAll = !showAll;
   }
 });
 

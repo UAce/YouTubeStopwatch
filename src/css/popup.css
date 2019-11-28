@@ -115,7 +115,7 @@ header {
 
 #reset {
     background-color: rgb(255, 56, 96);
-    border-radius: 2px;
+    border-radius: 3px;
     border: none;
     color: white;
     position: absolute;
@@ -131,7 +131,7 @@ header {
 
 #showArticle {
     background-color: rgb(96, 96, 255);
-    border-radius: 2px;
+    border-radius: 3px;
     border: none;
     color: white;
     position: absolute;
@@ -142,6 +142,22 @@ header {
 }
 
 #showArticle:hover {
+    cursor: pointer;
+}
+
+#clearCache {
+    background-color: rgb(0, 0, 0);
+    border-radius: 3px;
+    border: none;
+    color: white;
+    position: absolute;
+    right: 5px;
+    top: 129px;
+    margin: 4px;
+    padding: 4px;
+}
+
+#clearCache:hover {
     cursor: pointer;
 }
 
