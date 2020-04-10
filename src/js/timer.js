@@ -10,6 +10,8 @@ if (bg.remainingTime === 'undefined') {
   $('#displayedTime').html('Timer has not been set');
 }
 var preset_list;
+var default_hours;
+var default_minutes;
 var chart;
 var listOfDates;
 var listOfAllocatedTime;
@@ -58,7 +60,7 @@ generateGraph();
 // Show settings
 $('#settings').click(function () {
   $('#popup-home').hide();
-  $('#popup-settings').show('slide', { direction: 'left', easing: 'easeOutQuint' }, 200);
+  $('#popup-settings').show('slide', { direction: 'right', easing: 'easeOutQuint' }, 200);
 });
 
 // Show last article
@@ -71,9 +73,22 @@ $('#showArticle').click(function () {
  * SETTINGS
  */
 function initSettings() {
-  chrome.storage.sync.get({ 'soundOn': default_soundOn, 'presetTimes': jQuery.extend(true, {}, default_presets) }, function (data) {
+  chrome.storage.sync.get({
+    'soundOn': default_soundOn,
+    'autoSetTime': default_autoSetTime,
+    'autoSetHours': default_autoSetHours,
+    'autoSetMinutes': default_autoSetMinutes,
+    'presetTimes': jQuery.extend(true, {}, default_presets)
+  }, function (data) {
     $("#soundOn").prop('checked', data.soundOn);
+    $("#autoSetTime").prop('checked', data.autoSetTime);
     preset_list = data.presetTimes;
+    default_hours = data.autoSetHours || "";
+    default_minutes = data.autoSetMinutes || "";
+    if (data.autoSetTime) {
+      $('#default_time').show();
+      populateDefaultTime();
+    }
     populatePresets();
     showPresets();
   });
@@ -94,9 +109,10 @@ function showPresets() {
     $('#preset_list').show();
   }
 }
+
 // Return to home
 $('#back').click(function () {
-  $('#popup-home').show('slide', { direction: 'right', easing: 'easeOutQuint' }, 200);
+  $('#popup-home').show('slide', { direction: 'left', easing: 'easeOutQuint' }, 200);
   $('#popup-settings').hide();
 });
 
@@ -121,6 +137,7 @@ $('#clearCache').click(function () {
       'remainingTime': 'undefined',
       'exceededTime': 'undefined',
       'soundOn': default_soundOn,
+      'autoSetTime': default_autoSetTime,
       'presetTimes': jQuery.extend(true, {}, default_presets),
       'blur_value': default_blurValue,
       'sessions': []
@@ -165,30 +182,79 @@ document.addEventListener('keydown', function (event) {
 });
 
 // Save setting changes
-$('#save_changes').click(function () {
+function save() {
   chrome.storage.sync.set({
-    'soundOn': $('#soundOn').prop('checked'), 'presetTimes': preset_list
+    'soundOn': $('#soundOn').prop('checked'),
+    'autoSetTime': $('#autoSetTime').prop('checked'),
+    'autoSetHours': default_hours,
+    'autoSetMinutes': default_minutes,
+    'presetTimes': preset_list
   }, function () {
     var snackbar = document.getElementById("saved_snackbar");
     snackbar.className = "show";
     $('#save_changes').attr("disabled", true);
+    $('#autoSetTime').attr("disabled", true);
+    $('#soundOn').attr("disabled", true);
 
     setTimeout(function () {
       snackbar.className = snackbar.className.replace("show", "");
       $('#save_changes').removeAttr("disabled");
-    }, 2000);
+      $('#autoSetTime').removeAttr("disabled");
+      $('#soundOn').removeAttr("disabled");
+    }, 1700);
   });
-});
+};
+$('#save_changes').click(save);
 
 // Restore default settings
 $('#restore_default').click(function () {
-  // Default values: soundOn = true
+  $("#autoSetTime").prop('checked', default_autoSetTime);
   $("#soundOn").prop('checked', default_soundOn);
   preset_list = jQuery.extend(true, {}, default_presets);
   $('#preset_list').html('');
   populatePresets();
 });
 
+
+/*
+ * SET DEFAULT TIME
+ */
+function validateInput(e) {
+  var val = parseInt(e.target.value);
+  var max = parseInt(e.target.max);
+  var min = parseInt(e.target.min);
+  if (val && (val > max || val < min)) {
+    $(`#${e.target.id}`).addClass('invalid_input');
+  } else {
+    $(`#${e.target.id}`).removeClass('invalid_input');
+  }
+}
+
+$('#default_hours_input').on('input', validateInput);
+$('#default_minutes_input').on('input', validateInput);
+
+function populateDefaultTime() {
+  $('#default_hours_input').val(default_hours);
+  $('#default_minutes_input').val(default_minutes);
+}
+
+$('#autoSetTime').change(function (e) {
+  if (e.target.checked) {
+    $('#default_time').show('slide', { direction: 'up', easing: 'easeOutQuint' }, 500);
+  } else {
+    $('#default_time').hide();
+  }
+  save();
+});
+
+
+/*
+ * Notifications
+ */
+
+$('#soundOn').change(function (e) {
+  save();
+});
 
 /*
  * PRESETS
@@ -221,9 +287,10 @@ function addOption(stringVal, intVal) {
 }
 
 // Validate preset options
-function validatePresets() {
-  var h = $('#preset_hours_input').val();
-  var min = $('#preset_minutes_input').val();
+function validatePresets(e) {
+  validateInput(e);
+  var h = parseInt($('#preset_hours_input').val());
+  var min = parseInt($('#preset_minutes_input').val());
   if (min > 59 || min < 0 || h > 23 || h < 0 || (h == 0 && min == 0)) {
     $('#add_preset').attr("disabled", true);
   } else {
@@ -453,4 +520,16 @@ function getMinDate(dates) {
     date = dates[0];
   }
   return newDate(date, -1);
+}
+
+function debounce(func, delay) {
+  let inDebounce
+  return function () {
+    const context = this
+    const args = arguments
+    clearTimeout(inDebounce)
+    inDebounce = setTimeout(function () {
+      func.apply(context, args);
+    }, delay);
+  }
 }

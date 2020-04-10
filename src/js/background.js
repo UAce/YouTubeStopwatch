@@ -6,6 +6,9 @@ chrome.runtime.onInstalled.addListener(function () {
         'remainingTime': 'undefined',
         'exceededTime': 'undefined',
         'soundOn': default_soundOn,
+        'autoSetTime': default_autoSetTime,
+        'autoSetHours': default_autoSetHours,
+        'autoSetMinutes': default_autoSetMinutes,
         'presetTimes': jQuery.extend(true, {}, default_presets),
         'blur_value': default_blurValue,
         'sessions': []
@@ -56,7 +59,6 @@ function setVarsFromChromeStorage() {
                 }
                 if ("sessions" in changes) {
                     sessions = changes.sessions.newValue;
-                    // console.log("Change:", { ...changes });
                 }
             }
         });

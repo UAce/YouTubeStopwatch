@@ -31,7 +31,23 @@
             <button id="clearCache" class="toShow">Clear Cache</button>
             <button id="back"><i class="fa fa-chevron-left" style="font-size: 18px;"></i></button>
             <h2 id="settings-title">Settings</h2>
-
+            <div class="settings-container">
+                <h3>Set Time</h3>
+                <div class="settings-toggle-button">
+                    <label class="switch">
+                        <input type="checkbox" id="autoSetTime">
+                        <span class="slider round"></span>
+                    </label>
+                    <span class="label">Automatic</span>
+                    <div id="default_time" class="toShow">
+                        <input id="default_hours_input" type="number" class="settings_input" min="0" max="23">
+                        <label class="settings_label">Hours</label>
+                        <input id="default_minutes_input" type="number" class="settings_input" min="0" max="59">
+                        <label class="settings_label">Minutes</label>
+                    </div>
+                </div>
+            </div>
+            <hr>
             <div class="settings-container">
                 <h3>Notifications</h3>
                 <div class="settings-toggle-button">
@@ -49,13 +65,13 @@
                     <span class="label">something</span>
                 </div> -->
             </div>
-
+            <hr>
             <div class="settings-container">
                 <h3>Preset Times</h3>
-                <input id="preset_hours_input" type="number" class="preset_input" min="0" max="23">
-                <label class="preset_label">Hours</label>
-                <input id="preset_minutes_input" type="number" class="preset_input" min="0" max="59">
-                <label class="preset_label">Minutes</label>
+                <input id="preset_hours_input" type="number" class="settings_input" min="0" max="23">
+                <label class="settings_label">Hours</label>
+                <input id="preset_minutes_input" type="number" class="settings_input" min="0" max="59">
+                <label class="settings_label">Minutes</label>
                 <button id="add_preset" class="action_buttons" disabled>Add</button>
                 <div id="empty_list" class="toShow">You do not have any preset times</div>
                 <ul id="preset_list"></ul>
@@ -65,7 +81,7 @@
                 <button id="save_changes" class="action_buttons">Save changes</button>
                 <button id="restore_default" class="action_buttons">Restore default</button>
             </div>
-            <div id="saved_snackbar">Your changes have been saved!</div>
+            <div id="saved_snackbar">Saving your changes!</div>
         </div>
     </div>
 </body>

@@ -95,6 +95,14 @@ header {
 .settings-container {
     padding-bottom: 1rem;
     padding-left: 1.5rem;
+    padding-top: 4px;
+}
+
+hr {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    width: 350px;
+    margin: 0;
+    margin-left: 1rem;
 }
 
 #back {
@@ -161,10 +169,6 @@ header {
     cursor: pointer;
 }
 
-input[type="checkbox"]:hover {
-    cursor: pointer;
-}
-
 input:focus {
     outline: 0;
 }
@@ -172,6 +176,10 @@ input:focus {
 input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
+}
+
+input[type=number]:disabled {
+    background-color: rgba(0, 0, 0, 0.05);
 }
 
 /*
@@ -245,13 +253,22 @@ input:checked+.slider:before {
  * PRESETS
  */
 
-.preset_input {
-    border-radius: 4px;
-    width: 1.25rem;
-    padding: 0 5px;
+.invalid_input {
+    border: 1px solid red;
+    background-color: pink;
 }
 
-.preset_label {
+.settings_input {
+    width: 33px;
+    padding: 3px 8px;
+    margin: 8px 0;
+    display: inline-block;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.settings_label {
     padding-right: 0.5rem;
     font-weight: 500;
 }

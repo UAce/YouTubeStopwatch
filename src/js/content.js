@@ -11,7 +11,10 @@ var overtimeStarted = false;
 var isPageReady = false;
 var sessions;
 var soundOn;
+var autoSetTime;
 var preset_times;
+var default_hours;
+var default_minutes;
 // Sound from https://notificationsounds.com/
 var snackSound = new Audio(chrome.runtime.getURL("audio/time_is_now.mp3"));
 snackSound.loop = false;
@@ -75,7 +78,11 @@ function init(activeRemainingTime, activeTimeOver) {
                 startCountdown(remainingTime);
             }
         } else {        // Time not set, show modal
-            showTimeModal();
+            if (autoSetTime) {
+                startSession(default_hours, default_minutes);
+            } else {
+                showModal();
+            }
         }
     });
 }
@@ -97,14 +104,23 @@ function reset() {
 function setVarsFromChromeStorage() {
     chrome.storage.sync.get({
         'soundOn': default_soundOn,
+        'autoSetTime': default_autoSetTime,
         'presetTimes': jQuery.extend(true, {}, default_presets),
+        'autoSetHours': default_autoSetHours,
+        'autoSetMinutes': default_autoSetMinutes,
         'sessions': []
     }, function (data) {
         soundOn = data.soundOn;
+        autoSetTime = data.autoSetTime;
         preset_times = data.presetTimes;
+        default_hours = data.autoSetHours || "";
+        default_minutes = data.autoSetMinutes || "";
         chrome.storage.sync.set({
             'soundOn': soundOn,
-            'presetTimes': preset_times
+            'autoSetTime': autoSetTime,
+            'presetTimes': preset_times,
+            'autoSetHours': default_hours,
+            'autoSetMinutes': default_minutes,
         });
         sessions = data.sessions;
     });
@@ -113,11 +129,20 @@ function setVarsFromChromeStorage() {
             if ("soundOn" in changes) {
                 soundOn = changes.soundOn.newValue;
             }
+            if ("autoSetTime" in changes) {
+                autoSetTime = changes.autoSetTime.newValue;
+            }
+            if ("autoSetHours" in changes) {
+                default_hours = changes.autoSetHours.newValue;
+            }
+            if ("autoSetMinutes" in changes) {
+                default_minutes = changes.autoSetMinutes.newValue;
+            }
             if ("presetTimes" in changes) {
                 preset_times = changes.presetTimes.newValue;
                 if (typeof (remainingTime) === "undefined" || remainingTime === "undefined") {
                     removeModal();
-                    showTimeModal();
+                    showModal();
                 }
             }
         }
@@ -320,13 +345,12 @@ function removeModal() {
     $("#timeModal").dialog('destroy').remove();
     $('#overlayModal').remove();
     $('html, body').css({
-        overflow: 'auto',
         height: 'auto'
     });
 }
 
 // Function to display modal
-function showTimeModal() {
+function showModal() {
     injectTimeModal();
     $('html, body').css({
         overflow: 'hidden'
@@ -352,32 +376,7 @@ function showTimeModal() {
                     if ($('#timeModalForm').valid()) {
                         var hours = $("#estimated_hours").val();
                         var minutes = $("#estimated_minutes").val();
-                        var estimatedTime = (ONE_MINUTE_IN_S * minutes) + (ONE_HOUR_IN_S * hours);
-                        if (estimatedTime <= 0) {
-                            chrome.runtime.sendMessage({ from: source.PAGE, event: event.CLOSE_TAB });
-                        } else {
-                            var startDate = new Date();
-                            var currentTimeInSeconds = startDate.getHours() * ONE_HOUR_IN_S + startDate.getMinutes() * ONE_MINUTE_IN_S + startDate.getSeconds();
-                            var timeToMidnight = TWENTY_FOUR_HOURS_IN_S - currentTimeInSeconds;
-                            if (timeToMidnight < estimatedTime) {
-                                estimatedTime = timeToMidnight;
-                                var h = ~~((estimatedTime / 3600));
-                                var min = ~~((estimatedTime / 60) % 60);
-                                var sec = ~~(estimatedTime % 60);
-                                showSnackbar(`Timer has been set to ${h}h ${min}min ${sec}s due to it exceeding the daily time limit (12:00 AM)`);
-                            }
-                            var newSession = {
-                                date: moment().startOf('day')._d.getTime(),
-                                timeSpent: 0,
-                                allocatedTime: estimatedTime
-                            };
-                            validateSession(newSession);
-                            chrome.storage.sync.set({ 'remainingTime': estimatedTime, 'sessions': sessions }, function () {
-                                chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_COUNTDOWN });
-                                chrome.runtime.sendMessage({ from: source.PAGE, event: event.INIT_ALL });
-                            });
-                            startCountdown(estimatedTime);
-                        }
+                        startSession(hours, minutes);
                         $(this).dialog("close");
                         removeModal();
                     }
@@ -445,6 +444,34 @@ function showTimeModal() {
     });
 }
 
+function startSession(hours, minutes) {
+    var estimatedTime = (ONE_MINUTE_IN_S * minutes) + (ONE_HOUR_IN_S * hours);
+    if (estimatedTime <= 0) {
+        chrome.runtime.sendMessage({ from: source.PAGE, event: event.CLOSE_TAB });
+    } else {
+        var startDate = new Date();
+        var currentTimeInSeconds = startDate.getHours() * ONE_HOUR_IN_S + startDate.getMinutes() * ONE_MINUTE_IN_S + startDate.getSeconds();
+        var timeToMidnight = TWENTY_FOUR_HOURS_IN_S - currentTimeInSeconds;
+        if (timeToMidnight < estimatedTime) {
+            estimatedTime = timeToMidnight;
+            var h = ~~((estimatedTime / 3600));
+            var min = ~~((estimatedTime / 60) % 60);
+            var sec = ~~(estimatedTime % 60);
+            showSnackbar(`Timer has been set to ${h}h ${min}min ${sec}s due to it exceeding the daily time limit (12:00 AM)`);
+        }
+        var newSession = {
+            date: moment().startOf('day')._d.getTime(),
+            timeSpent: 0,
+            allocatedTime: estimatedTime
+        };
+        validateSession(newSession);
+        chrome.storage.sync.set({ 'remainingTime': estimatedTime, 'sessions': sessions }, function () {
+            chrome.runtime.sendMessage({ from: source.PAGE, event: event.START_COUNTDOWN });
+            chrome.runtime.sendMessage({ from: source.PAGE, event: event.INIT_ALL });
+        });
+        startCountdown(estimatedTime);
+    }
+}
 
 /*
  * BLUR EFFECT
