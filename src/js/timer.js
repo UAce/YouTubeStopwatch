@@ -83,8 +83,8 @@ function initSettings() {
     $("#soundOn").prop('checked', data.soundOn);
     $("#autoSetTime").prop('checked', data.autoSetTime);
     preset_list = data.presetTimes;
-    default_hours = data.autoSetHours || "";
-    default_minutes = data.autoSetMinutes || "";
+    default_hours = parseInt(data.autoSetHours) || "";
+    default_minutes = parseInt(data.autoSetMinutes) || "";
     if (data.autoSetTime) {
       $('#default_time').show();
       populateDefaultTime();

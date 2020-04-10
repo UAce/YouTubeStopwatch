@@ -22,43 +22,46 @@ var pageReadyIntervalId = setInterval(function () {
     injectComponentOnce();
     if (isPageReady) {
         clearInterval(pageReadyIntervalId);
+        subscribe();
     }
-}, 1000);
+}, 500);
 setVarsFromChromeStorage();
 
 /*
- * MAIN - HANDLES INTERACTION WITH BACKGROUND PAGE
+ * SUBSCRIBE - HANDLES INTERACTION WITH BACKGROUND PAGE
  */
-// FIRST: Send message to background.js to subscribe active YouTube page
-chrome.runtime.sendMessage({ from: source.PAGE });
+function subscribe() {
+    // FIRST: Send message to background.js to subscribe active YouTube page
+    chrome.runtime.sendMessage({ from: source.PAGE });
 
-// SECOND: Add listener to events from background.js
-chrome.runtime.onMessage.addListener(function (msg) {
-    // console.log("Content script received", msg);
-    if (msg.from === source.BACKGROUND) {
-        // console.log(msg.event, " event received!");
-        switch (msg.event) {
-            case event.INIT:
-                init(msg.remainingTime, msg.exceededTime);
-                break;
-            case event.RESET:
-                reset();
-                break;
-            case event.SNACKBAR:
-                showSnackbar();
-                break;
-            case event.START_COUNTDOWN:
-                startCountdown(msg.remainingTime);
-                break;
-            case event.START_OVERTIME:
-                blur();
-                startOvertime(msg.exceededTime);
-                break;
-            default:
-                break;
+    // SECOND: Add listener to events from background.js
+    chrome.runtime.onMessage.addListener(function (msg) {
+        // console.log("Content script received", msg);
+        if (msg.from === source.BACKGROUND) {
+            // console.log(msg.event, " event received!");
+            switch (msg.event) {
+                case event.INIT:
+                    init(msg.remainingTime, msg.exceededTime);
+                    break;
+                case event.RESET:
+                    reset();
+                    break;
+                case event.SNACKBAR:
+                    showSnackbar();
+                    break;
+                case event.START_COUNTDOWN:
+                    startCountdown(msg.remainingTime);
+                    break;
+                case event.START_OVERTIME:
+                    blur();
+                    startOvertime(msg.exceededTime);
+                    break;
+                default:
+                    break;
+            }
         }
-    }
-});
+    });
+}
 
 // Init function to decide whether to show modal, start countdown or overtime
 function init(activeRemainingTime, activeTimeOver) {
@@ -113,8 +116,8 @@ function setVarsFromChromeStorage() {
         soundOn = data.soundOn;
         autoSetTime = data.autoSetTime;
         preset_times = data.presetTimes;
-        default_hours = data.autoSetHours || "";
-        default_minutes = data.autoSetMinutes || "";
+        default_hours = parseInt(data.autoSetHours);
+        default_minutes = parseInt(data.autoSetMinutes);
         chrome.storage.sync.set({
             'soundOn': soundOn,
             'autoSetTime': autoSetTime,
